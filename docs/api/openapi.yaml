@@ -1022,6 +1022,24 @@ paths:
         '429':
           $ref: '#/components/responses/TooManyRequests'
 
+  /me/dashboard:
+    get:
+      tags: [Me]
+      summary: 获取本人待确认通知、待完成任务和逾期数量
+      operationId: getPersonalDashboard
+      responses:
+        '200':
+          description: 仅包含当前用户有效待办，可追溯到通知或任务详情
+
+  /me/reminders:
+    get:
+      tags: [Reminders]
+      summary: 查询本人站内提醒及辅助渠道状态
+      operationId: listMyReminders
+      responses:
+        '200':
+          description: 本人提醒记录，提醒状态不改变业务确认或完成状态
+
   /dashboard/management:
     get:
       tags: [Reports]
