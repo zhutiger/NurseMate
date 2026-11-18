@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 const baseUrl = process.env.BASE_URL;
+const headEmployeeNo = process.env.SEED_HEAD_EMPLOYEE_NO ?? 'admin';
 const headPassword = process.env.SEED_HEAD_PASSWORD;
 const nursePassword = process.env.SEED_NURSE_PASSWORD;
 if (!baseUrl || !headPassword || !nursePassword) throw new Error('Smoke environment is incomplete');
@@ -21,7 +22,7 @@ const login = async (employeeNo, password) => (await request('/auth/login', {
   method: 'POST', body: JSON.stringify({ employeeNo, password, clientPlatform: 'H5', deviceName: 'reminders-smoke' }),
 })).data;
 
-const head = await login('smoke-head', headPassword);
+const head = await login(headEmployeeNo, headPassword);
 const nurse = await login('smoke-nurse', nursePassword);
 const headHeaders = { authorization: `Bearer ${head.accessToken}` };
 const nurseHeaders = { authorization: `Bearer ${nurse.accessToken}` };

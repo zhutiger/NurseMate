@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 
 const baseUrl = process.env.BASE_URL;
+const headEmployeeNo = process.env.SEED_HEAD_EMPLOYEE_NO ?? 'admin';
 const headPassword = process.env.SEED_HEAD_PASSWORD;
 if (!baseUrl || !headPassword) throw new Error('BASE_URL and SEED_HEAD_PASSWORD are required');
 
@@ -26,7 +27,7 @@ const login = async (employeeNo, password) =>
     body: JSON.stringify({ employeeNo, password, clientPlatform: 'H5', deviceName: 'auth-users-smoke' }),
   })).data;
 
-const head = await login('smoke-head', headPassword);
+const head = await login(headEmployeeNo, headPassword);
 const headHeaders = { authorization: `Bearer ${head.accessToken}` };
 const suffix = Date.now().toString(36);
 const initialPassword = `Init${randomBytes(9).toString('hex')}7`;
@@ -41,7 +42,7 @@ const imported = (await request('/users/import', {
   method: 'POST', headers: headHeaders,
   body: JSON.stringify({ rows: [
     { employeeNo: `smoke-i-${suffix}`, name: '批量导入测试护士', role: 'NURSE', primaryGroupId: group.id },
-    { employeeNo: 'smoke-head', name: '重复工号', role: 'NURSE' },
+    { employeeNo: headEmployeeNo, name: '重复工号', role: 'NURSE' },
   ] }),
 })).data;
 if (imported.succeeded !== 1 || imported.failed !== 1 || imported.results[1]?.errorCode !== 'EMPLOYEE_NO_CONFLICT') {

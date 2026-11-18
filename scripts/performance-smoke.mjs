@@ -1,6 +1,7 @@
 import { performance } from 'node:perf_hooks';
 
 const baseUrl = process.env.BASE_URL;
+const headEmployeeNo = process.env.SEED_HEAD_EMPLOYEE_NO ?? 'admin';
 const headPassword = process.env.SEED_HEAD_PASSWORD;
 if (!baseUrl || !headPassword) throw new Error('BASE_URL and SEED_HEAD_PASSWORD are required');
 
@@ -16,7 +17,7 @@ async function json(path, options = {}) {
 
 const session = await json('/auth/login', {
   method: 'POST',
-  body: JSON.stringify({ employeeNo: 'smoke-head', password: headPassword, clientPlatform: 'H5', deviceName: 'performance-smoke' }),
+  body: JSON.stringify({ employeeNo: headEmployeeNo, password: headPassword, clientPlatform: 'H5', deviceName: 'performance-smoke' }),
 });
 const headers = { authorization: `Bearer ${session.accessToken}` };
 const paths = ['/me', '/dashboard/management', '/notices?pageSize=20', '/tasks?pageSize=20'];

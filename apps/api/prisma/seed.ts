@@ -4,6 +4,7 @@ import { hashPassword } from '../src/common/password';
 const prisma = new PrismaClient();
 
 async function main() {
+  const headEmployeeNo = process.env.SEED_HEAD_EMPLOYEE_NO ?? 'admin';
   const headPassword = process.env.SEED_HEAD_PASSWORD;
   const nursePassword = process.env.SEED_NURSE_PASSWORD;
   if (!headPassword || !nursePassword) {
@@ -28,18 +29,15 @@ async function main() {
   });
 
   const head = await prisma.user.upsert({
-    where: { employeeNo: 'smoke-head' },
+    where: { employeeNo: headEmployeeNo },
     update: {
-      name: '测试护士长',
+      name: '系统管理员',
       role: 'HEAD_NURSE',
-      status: 'ACTIVE',
-      passwordHash: await hashPassword(headPassword),
-      activatedAt: new Date(),
     },
     create: {
       departmentId: department.id,
-      employeeNo: 'smoke-head',
-      name: '测试护士长',
+      employeeNo: headEmployeeNo,
+      name: '系统管理员',
       role: 'HEAD_NURSE',
       status: 'ACTIVE',
       passwordHash: await hashPassword(headPassword),

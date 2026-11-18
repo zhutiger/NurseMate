@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 const baseUrl = process.env.BASE_URL;
+const headEmployeeNo = process.env.SEED_HEAD_EMPLOYEE_NO ?? 'admin';
 const headPassword = process.env.SEED_HEAD_PASSWORD;
 if (!baseUrl || !headPassword) throw new Error('BASE_URL and SEED_HEAD_PASSWORD are required');
 
@@ -16,7 +17,7 @@ async function request(path, options = {}, expected = [200, 201, 202, 204]) {
 
 const head = (await request('/auth/login', {
   method: 'POST',
-  body: JSON.stringify({ employeeNo: 'smoke-head', password: headPassword, clientPlatform: 'H5', deviceName: 'reports-smoke' }),
+  body: JSON.stringify({ employeeNo: headEmployeeNo, password: headPassword, clientPlatform: 'H5', deviceName: 'reports-smoke' }),
 })).data;
 const headers = { authorization: `Bearer ${head.accessToken}` };
 
