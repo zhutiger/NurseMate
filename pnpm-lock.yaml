@@ -8,6 +8,28 @@ importers:
 
   .: {}
 
+  apps/admin-web:
+    dependencies:
+      vue:
+        specifier: 3.4.21
+        version: 3.4.21(typescript@5.9.3)
+    devDependencies:
+      '@vitejs/plugin-vue':
+        specifier: 5.2.4
+        version: 5.2.4(vite@5.2.8(@types/node@24.10.1)(terser@5.51.2))(vue@3.4.21(typescript@5.9.3))
+      '@vue/tsconfig':
+        specifier: 0.8.1
+        version: 0.8.1(typescript@5.9.3)(vue@3.4.21(typescript@5.9.3))
+      typescript:
+        specifier: 5.9.3
+        version: 5.9.3
+      vite:
+        specifier: 5.2.8
+        version: 5.2.8(@types/node@24.10.1)(terser@5.51.2)
+      vue-tsc:
+        specifier: 2.2.12
+        version: 2.2.12(typescript@5.9.3)
+
   apps/api:
     dependencies:
       '@nestjs/common':
@@ -6667,7 +6689,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.25.2(supports-color@8.1.1)
       '@babel/helper-plugin-utils': 7.29.7
-      '@babel/types': 7.25.6
+      '@babel/types': 7.29.14
       esutils: 2.0.3
 
   '@babel/runtime-corejs3@7.29.14':
@@ -8738,15 +8760,15 @@ snapshots:
 
   '@vue/compiler-sfc@3.4.21':
     dependencies:
-      '@babel/parser': 7.25.6
+      '@babel/parser': 7.29.14
       '@vue/compiler-core': 3.4.21
       '@vue/compiler-dom': 3.4.21
       '@vue/compiler-ssr': 3.4.21
       '@vue/shared': 3.4.21
       estree-walker: 2.0.2
-      magic-string: 0.30.11
+      magic-string: 0.30.21
       postcss: 8.5.33
-      source-map-js: 1.2.1
+      source-map-js: 1.2.2
 
   '@vue/compiler-sfc@3.5.45':
     dependencies:
