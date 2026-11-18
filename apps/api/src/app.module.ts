@@ -1,13 +1,16 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import { AccessModule } from './common/access.module';
 import { AuthGuard } from './common/auth.guard';
+import { HttpExceptionFilter } from './common/http-exception.filter';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { NoticesModule } from './modules/notices/notices.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { TasksModule } from './modules/tasks/tasks.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -18,11 +21,16 @@ import { TasksModule } from './modules/tasks/tasks.module';
       signOptions: { expiresIn: '30m' },
     }),
     PrismaModule,
+    AccessModule,
     AuthModule,
+    UsersModule,
     HealthModule,
     NoticesModule,
     TasksModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_FILTER, useClass: HttpExceptionFilter },
+  ],
 })
 export class AppModule {}

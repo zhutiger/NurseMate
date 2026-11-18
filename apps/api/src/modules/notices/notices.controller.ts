@@ -1,16 +1,20 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { AccessService } from '../../common/access.service';
 import { CurrentUser, type AuthUser } from '../../common/current-user.decorator';
-import { requireHeadNurse, response } from '../../common/management';
+import { response } from '../../common/management';
 import { ConfirmNoticeDto, CreateNoticeDto } from './notices.dto';
 import { NoticesService } from './notices.service';
 
 @Controller()
 export class NoticesController {
-  constructor(private readonly notices: NoticesService) {}
+  constructor(
+    private readonly notices: NoticesService,
+    private readonly access: AccessService,
+  ) {}
 
   @Post('notices')
   async create(@CurrentUser() user: AuthUser, @Body() dto: CreateNoticeDto) {
-    requireHeadNurse(user);
+    await this.access.require(user, 'notice.publish');
     return response(await this.notices.create(user, dto));
   }
 
@@ -19,7 +23,7 @@ export class NoticesController {
     @CurrentUser() user: AuthUser,
     @Param('noticeId', ParseUUIDPipe) noticeId: string,
   ) {
-    requireHeadNurse(user);
+    await this.access.require(user, 'notice.publish');
     return response(await this.notices.publish(user, noticeId));
   }
 

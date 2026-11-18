@@ -1,22 +1,52 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { CurrentUser, type AuthUser } from '../../common/current-user.decorator';
-import { Public } from '../../common/public.decorator';
 import { response } from '../../common/management';
-import { LoginDto } from './auth.dto';
+import { Public } from '../../common/public.decorator';
+import {
+  ActivateDto,
+  AssociateWechatDto,
+  LoginDto,
+  RefreshDto,
+  ResetPasswordDto,
+} from './auth.dto';
 import { AuthService } from './auth.service';
 
 @Controller()
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
-  @Public()
-  @Post('auth/login')
+  @Public() @Post('auth/activate')
+  async activate(@Body() dto: ActivateDto) {
+    return response(await this.auth.activate(dto));
+  }
+
+  @Public() @Post('auth/login')
   async login(@Body() dto: LoginDto) {
     return response(await this.auth.login(dto));
   }
 
+  @Public() @Post('auth/refresh')
+  async refresh(@Body() dto: RefreshDto) {
+    return response(await this.auth.refresh(dto));
+  }
+
+  @Public() @Post('auth/reset-password') @HttpCode(204)
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto);
+  }
+
+  @Post('auth/logout') @HttpCode(204)
+  async logout(@CurrentUser() user: AuthUser) {
+    await this.auth.logout(user);
+  }
+
+  @Post('auth/wechat/associate')
+  async associateWechat(@CurrentUser() user: AuthUser, @Body() dto: AssociateWechatDto) {
+    return response(await this.auth.associateWechat(user, dto));
+  }
+
   @Get('me')
-  me(@CurrentUser() user: AuthUser) {
-    return response({ user, permissions: [], wechatAssociated: false });
+  async me(@CurrentUser() user: AuthUser) {
+    return response(await this.auth.me(user));
   }
 }

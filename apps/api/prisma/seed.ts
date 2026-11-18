@@ -16,6 +16,17 @@ async function main() {
     create: { code: 'PCCM', name: '呼吸与危重症医学科护理单元' },
   });
 
+  await prisma.permission.createMany({
+    skipDuplicates: true,
+    data: [
+      ['notice.publish', '发布通知'], ['notice.stats', '通知统计'], ['notice.remind', '通知催办'],
+      ['notice.manage', '通知管理'], ['task.publish', '发布任务'], ['task.stats', '任务统计'],
+      ['task.remind', '任务催办'], ['task.review', '任务审核'], ['task.manage', '任务管理'],
+      ['user.manage', '人员管理'], ['permission.manage', '权限管理'], ['report.export', '导出报表'],
+      ['audit.view', '查看审计'],
+    ].map(([code, name]) => ({ code, name, description: name })),
+  });
+
   const head = await prisma.user.upsert({
     where: { employeeNo: 'smoke-head' },
     update: {

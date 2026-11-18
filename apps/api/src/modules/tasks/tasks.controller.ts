@@ -1,22 +1,26 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { AccessService } from '../../common/access.service';
 import { CurrentUser, type AuthUser } from '../../common/current-user.decorator';
-import { requireHeadNurse, response } from '../../common/management';
+import { response } from '../../common/management';
 import { CreateTaskDto, ReviewTaskDto, SubmitTaskDto } from './tasks.dto';
 import { TasksService } from './tasks.service';
 
 @Controller()
 export class TasksController {
-  constructor(private readonly tasks: TasksService) {}
+  constructor(
+    private readonly tasks: TasksService,
+    private readonly access: AccessService,
+  ) {}
 
   @Post('tasks')
   async create(@CurrentUser() user: AuthUser, @Body() dto: CreateTaskDto) {
-    requireHeadNurse(user);
+    await this.access.require(user, 'task.publish');
     return response(await this.tasks.create(user, dto));
   }
 
   @Post('tasks/:taskId/publish')
   async publish(@CurrentUser() user: AuthUser, @Param('taskId', ParseUUIDPipe) taskId: string) {
-    requireHeadNurse(user);
+    await this.access.require(user, 'task.publish');
     return response(await this.tasks.publish(user, taskId));
   }
 
@@ -41,7 +45,7 @@ export class TasksController {
     @Param('recordId', ParseUUIDPipe) recordId: string,
     @Body() dto: ReviewTaskDto,
   ) {
-    requireHeadNurse(user);
+    await this.access.require(user, 'task.review');
     return response(await this.tasks.review(user, taskId, recordId, dto));
   }
 }
