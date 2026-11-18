@@ -602,6 +602,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManagedNoticeResponse'
 
+  /notices/recipient-preview:
+    post:
+      tags: [Notices]
+      summary: 预览去重后的有效通知接收人
+      operationId: previewNoticeRecipients
+      x-permission: notice.publish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipientSelection'
+      responses:
+        '200':
+          description: 实际接收人数及有效人员摘要，不产生通知和接收记录
+
   /notices/{noticeId}:
     get:
       tags: [Notices]

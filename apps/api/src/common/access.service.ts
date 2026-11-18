@@ -20,6 +20,11 @@ export class AccessService {
     if (!(await this.has(user, permission))) throw new ForbiddenException('PERMISSION_DENIED');
   }
 
+  async requireAny(user: AuthUser, permissions: string[]): Promise<void> {
+    const results = await Promise.all(permissions.map((permission) => this.has(user, permission)));
+    if (!results.some(Boolean)) throw new ForbiddenException('PERMISSION_DENIED');
+  }
+
   requireHeadNurse(user: AuthUser): void {
     if (user.role !== 'HEAD_NURSE') throw new ForbiddenException('PERMISSION_DENIED');
   }
