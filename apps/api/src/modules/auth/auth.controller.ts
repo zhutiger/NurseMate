@@ -16,16 +16,19 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public() @Post('auth/activate')
+  @HttpCode(200)
   async activate(@Body() dto: ActivateDto) {
     return response(await this.auth.activate(dto));
   }
 
   @Public() @Post('auth/login')
+  @HttpCode(200)
   async login(@Body() dto: LoginDto) {
     return response(await this.auth.login(dto));
   }
 
   @Public() @Post('auth/refresh')
+  @HttpCode(200)
   async refresh(@Body() dto: RefreshDto) {
     return response(await this.auth.refresh(dto));
   }
@@ -41,6 +44,7 @@ export class AuthController {
   }
 
   @Post('auth/wechat/associate')
+  @HttpCode(200)
   async associateWechat(@CurrentUser() user: AuthUser, @Body() dto: AssociateWechatDto) {
     return response(await this.auth.associateWechat(user, dto));
   }

@@ -23,6 +23,7 @@ export class TasksController {
   ) {}
 
   @Post('tasks/assignee-preview')
+  @HttpCode(200)
   async previewAssignees(@CurrentUser() user: AuthUser, @Body() dto: AssigneeSelectionDto) {
     await this.access.require(user, 'task.publish');
     return response(await this.tasks.previewAssignees(user, dto));
@@ -72,12 +73,14 @@ export class TasksController {
   }
 
   @Post('tasks/:taskId/publish')
+  @HttpCode(200)
   async publish(@CurrentUser() user: AuthUser, @Param('taskId', ParseUUIDPipe) taskId: string) {
     await this.access.require(user, 'task.publish');
     return response(await this.tasks.publish(user, taskId));
   }
 
   @Post('tasks/:taskId/close')
+  @HttpCode(200)
   async close(
     @CurrentUser() user: AuthUser,
     @Param('taskId', ParseUUIDPipe) taskId: string,
@@ -88,6 +91,7 @@ export class TasksController {
   }
 
   @Post('tasks/:taskId/withdraw')
+  @HttpCode(200)
   async withdraw(
     @CurrentUser() user: AuthUser,
     @Param('taskId', ParseUUIDPipe) taskId: string,
@@ -108,6 +112,7 @@ export class TasksController {
   }
 
   @Post('tasks/:taskId/records')
+  @HttpCode(200)
   async addAssignees(
     @CurrentUser() user: AuthUser,
     @Param('taskId', ParseUUIDPipe) taskId: string,
@@ -118,6 +123,7 @@ export class TasksController {
   }
 
   @Post('tasks/:taskId/records/:recordId/review')
+  @HttpCode(200)
   async review(
     @CurrentUser() user: AuthUser,
     @Param('taskId', ParseUUIDPipe) taskId: string,
@@ -129,6 +135,7 @@ export class TasksController {
   }
 
   @Post('tasks/:taskId/records/:recordId/exclude')
+  @HttpCode(200)
   async excludeRecord(
     @CurrentUser() user: AuthUser,
     @Param('taskId', ParseUUIDPipe) taskId: string,
@@ -150,6 +157,7 @@ export class TasksController {
   }
 
   @Post('me/tasks/:taskId/complete')
+  @HttpCode(200)
   async complete(@CurrentUser() user: AuthUser, @Param('taskId', ParseUUIDPipe) taskId: string) {
     return response(await this.tasks.complete(user, taskId));
   }

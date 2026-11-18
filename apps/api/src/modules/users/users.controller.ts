@@ -52,6 +52,7 @@ export class UsersController {
   }
 
   @Post('users/import')
+  @HttpCode(200)
   async import(@CurrentUser() user: AuthUser, @Body() dto: ImportUsersDto) {
     this.access.requireHeadNurse(user);
     return response(await this.users.import(user, dto));

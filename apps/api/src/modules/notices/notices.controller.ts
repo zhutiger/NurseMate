@@ -23,6 +23,7 @@ export class NoticesController {
   ) {}
 
   @Post('notices/recipient-preview')
+  @HttpCode(200)
   async previewRecipients(@CurrentUser() user: AuthUser, @Body() dto: RecipientSelectionDto) {
     await this.access.require(user, 'notice.publish');
     return response(await this.notices.previewRecipients(user, dto));
@@ -66,12 +67,14 @@ export class NoticesController {
   }
 
   @Post('notices/:noticeId/publish')
+  @HttpCode(200)
   async publish(@CurrentUser() user: AuthUser, @Param('noticeId', ParseUUIDPipe) noticeId: string) {
     await this.access.require(user, 'notice.publish');
     return response(await this.notices.publish(user, noticeId));
   }
 
   @Post('notices/:noticeId/close')
+  @HttpCode(200)
   async close(
     @CurrentUser() user: AuthUser,
     @Param('noticeId', ParseUUIDPipe) noticeId: string,
@@ -82,6 +85,7 @@ export class NoticesController {
   }
 
   @Post('notices/:noticeId/withdraw')
+  @HttpCode(200)
   async withdraw(
     @CurrentUser() user: AuthUser,
     @Param('noticeId', ParseUUIDPipe) noticeId: string,
@@ -102,6 +106,7 @@ export class NoticesController {
   }
 
   @Post('notices/:noticeId/recipients')
+  @HttpCode(200)
   async addRecipients(
     @CurrentUser() user: AuthUser,
     @Param('noticeId', ParseUUIDPipe) noticeId: string,
@@ -112,6 +117,7 @@ export class NoticesController {
   }
 
   @Post('notices/:noticeId/recipients/:userId/exclude')
+  @HttpCode(200)
   async excludeRecipient(
     @CurrentUser() user: AuthUser,
     @Param('noticeId', ParseUUIDPipe) noticeId: string,
@@ -133,6 +139,7 @@ export class NoticesController {
   }
 
   @Post('me/notices/:noticeId/confirm')
+  @HttpCode(200)
   async confirm(
     @CurrentUser() user: AuthUser,
     @Param('noticeId', ParseUUIDPipe) noticeId: string,
