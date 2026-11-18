@@ -1,14 +1,32 @@
 {
   "pages": [
-    {
-      "path": "pages/index/index",
-      "style": { "navigationBarTitleText": "护知音" }
-    }
+    { "path": "pages/index/index", "style": { "navigationBarTitleText": "护知音" } },
+    { "path": "pages/notices/notices", "style": { "navigationBarTitleText": "消息" } },
+    { "path": "pages/tasks/tasks", "style": { "navigationBarTitleText": "任务" } },
+    { "path": "pages/profile/profile", "style": { "navigationBarTitleText": "我的" } },
+    { "path": "pages/login/login", "style": { "navigationBarTitleText": "登录", "navigationStyle": "custom" } },
+    { "path": "pages/notices/detail", "style": { "navigationBarTitleText": "通知详情" } },
+    { "path": "pages/tasks/detail", "style": { "navigationBarTitleText": "任务详情" } },
+    { "path": "pages/admin/dashboard", "style": { "navigationBarTitleText": "管理看板" } },
+    { "path": "pages/admin/create-notice", "style": { "navigationBarTitleText": "发布通知" } },
+    { "path": "pages/admin/create-task", "style": { "navigationBarTitleText": "发布任务" } }
   ],
+  "tabBar": {
+    "color": "#6b7f84",
+    "selectedColor": "#007f95",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      { "pagePath": "pages/index/index", "text": "首页" },
+      { "pagePath": "pages/notices/notices", "text": "消息" },
+      { "pagePath": "pages/tasks/tasks", "text": "任务" },
+      { "pagePath": "pages/profile/profile", "text": "我的" }
+    ]
+  },
   "globalStyle": {
     "navigationBarTextStyle": "white",
     "navigationBarTitleText": "护知音",
-    "navigationBarBackgroundColor": "#005870",
-    "backgroundColor": "#f4f8f8"
+    "navigationBarBackgroundColor": "#007f95",
+    "backgroundColor": "#f3f7f7"
   }
 }
