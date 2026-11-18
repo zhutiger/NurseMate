@@ -56,6 +56,17 @@ const activated = (await request('/auth/activate', {
   }),
 })).data;
 if (activated.user.id !== nurse.id) throw new Error('Activation returned a different internal user');
+const repeatedActivation = (await request('/auth/activate', {
+  method: 'POST',
+  body: JSON.stringify({
+    employeeNo: nurse.employeeNo,
+    activationCode: activation.activationCode,
+    password: initialPassword,
+    clientPlatform: 'H5',
+    deviceName: 'activation-smoke-retry',
+  }),
+})).data;
+if (repeatedActivation.user.id !== nurse.id) throw new Error('Repeated activation created a different identity');
 
 const refreshed = (await request('/auth/refresh', {
   method: 'POST', body: JSON.stringify({ refreshToken: activated.refreshToken }),
@@ -67,6 +78,10 @@ const resetCode = (await request(`/users/${nurse.id}/activation-codes`, {
   method: 'POST', headers: headHeaders,
   body: JSON.stringify({ purpose: 'RESET_PASSWORD', reason: '自动化密码重置验收' }),
 })).data;
+await request('/auth/reset-password', {
+  method: 'POST',
+  body: JSON.stringify({ employeeNo: nurse.employeeNo, resetCode: resetCode.activationCode, newPassword: resetPassword }),
+}, [204]);
 await request('/auth/reset-password', {
   method: 'POST',
   body: JSON.stringify({ employeeNo: nurse.employeeNo, resetCode: resetCode.activationCode, newPassword: resetPassword }),
@@ -121,6 +136,7 @@ await request('/me', { headers: { authorization: `Bearer ${nurseSession.accessTo
 console.log(JSON.stringify({
   smoke: 'auth-users-ok',
   activation: true,
+  activationRetry: true,
   refreshRotation: true,
   resetAndLogout: true,
   coordinatorPermission: true,

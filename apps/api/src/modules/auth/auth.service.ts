@@ -127,13 +127,29 @@ export class AuthService {
   async activate(dto: ActivateDto) {
     const user = await this.prisma.user.findUnique({ where: { employeeNo: dto.employeeNo } });
     if (!user) throw new UnauthorizedException('ACTIVATION_CODE_INVALID');
+    const normalizedCodeHash = this.tokenHash(dto.activationCode.trim().toUpperCase());
+    if (user.status === 'ACTIVE' && user.passwordHash && await verifyPassword(user.passwordHash, dto.password)) {
+      const usedCode = await this.prisma.activationCode.findFirst({
+        where: { userId: user.id, purpose: 'ACTIVATE_ACCOUNT', codeHash: normalizedCodeHash, usedAt: { not: null } },
+      });
+      if (usedCode) {
+        const issued = await this.prisma.$transaction(async (tx) => {
+          const session = await this.createSession(tx, user, dto.clientPlatform, dto.deviceName);
+          await tx.auditLog.create({
+            data: { departmentId: user.departmentId, actorId: user.id, action: 'auth.activate_retry', targetType: 'user', targetId: user.id, result: 'SUCCESS' },
+          });
+          return session;
+        });
+        return this.authResult(user, issued.session.id, issued.refreshToken);
+      }
+    }
     if (user.status !== 'PENDING_ACTIVATION') throw new ConflictException('ACCOUNT_ALREADY_ACTIVATED');
     if (user.lockedUntil && user.lockedUntil > new Date()) throw new HttpException('ACCOUNT_LOCKED', 423);
     const code = await this.prisma.activationCode.findFirst({
       where: {
         userId: user.id,
         purpose: 'ACTIVATE_ACCOUNT',
-        codeHash: this.tokenHash(dto.activationCode.trim().toUpperCase()),
+        codeHash: normalizedCodeHash,
         usedAt: null,
         invalidatedAt: null,
         expiresAt: { gt: new Date() },
@@ -187,17 +203,24 @@ export class AuthService {
     if (!user || user.status === 'DISABLED' || user.status === 'PENDING_ACTIVATION') {
       throw new UnauthorizedException('ACTIVATION_CODE_INVALID');
     }
+    const normalizedCodeHash = this.tokenHash(dto.resetCode.trim().toUpperCase());
     const code = await this.prisma.activationCode.findFirst({
       where: {
         userId: user.id,
         purpose: 'RESET_PASSWORD',
-        codeHash: this.tokenHash(dto.resetCode.trim().toUpperCase()),
+        codeHash: normalizedCodeHash,
         usedAt: null,
         invalidatedAt: null,
         expiresAt: { gt: new Date() },
       },
     });
-    if (!code) throw new UnauthorizedException('ACTIVATION_CODE_INVALID');
+    if (!code) {
+      const usedCode = await this.prisma.activationCode.findFirst({
+        where: { userId: user.id, purpose: 'RESET_PASSWORD', codeHash: normalizedCodeHash, usedAt: { not: null } },
+      });
+      if (usedCode && user.passwordHash && await verifyPassword(user.passwordHash, dto.newPassword)) return;
+      throw new UnauthorizedException('ACTIVATION_CODE_INVALID');
+    }
     const passwordHash = await hashPassword(dto.newPassword);
     await this.prisma.$transaction(async (tx) => {
       const claimed = await tx.activationCode.updateMany({

@@ -121,6 +121,20 @@ const cancelDraft = (await request('/tasks', {
 })).data;
 await request(`/tasks/${cancelDraft.id}`, { method: 'DELETE', headers: headHeaders }, [204]);
 
+const idempotencyKey = randomUUID();
+const idempotentBody = JSON.stringify({ ...baseTask, title: `幂等任务 ${Date.now()}` });
+const idempotentFirst = (await request('/tasks', {
+  method: 'POST', headers: { ...headHeaders, 'idempotency-key': idempotencyKey }, body: idempotentBody,
+})).data;
+const idempotentReplay = (await request('/tasks', {
+  method: 'POST', headers: { ...headHeaders, 'idempotency-key': idempotencyKey }, body: idempotentBody,
+})).data;
+if (idempotentFirst.id !== idempotentReplay.id) throw new Error('Idempotent replay created a second task');
+await request('/tasks', {
+  method: 'POST', headers: { ...headHeaders, 'idempotency-key': idempotencyKey },
+  body: JSON.stringify({ ...baseTask, title: `错误复用幂等键 ${Date.now()}` }),
+}, [409]);
+
 const overdue = (await request('/tasks', {
   method: 'POST', headers: headHeaders,
   body: JSON.stringify({ ...baseTask, title: `任务逾期派生 ${Date.now()}`, deadlineAt: new Date(Date.now() + 2000).toISOString() }),
@@ -139,5 +153,6 @@ console.log(JSON.stringify({
   assigneeAddExclude: true,
   overdueDerived: true,
   draftUpdateAndCancel: true,
+  idempotencyReplay: true,
   close: true,
 }));

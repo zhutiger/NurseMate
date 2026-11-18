@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AccessModule } from './common/access.module';
 import { AuthGuard } from './common/auth.guard';
 import { HttpExceptionFilter } from './common/http-exception.filter';
+import { IdempotencyInterceptor } from './common/idempotency.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { NoticesModule } from './modules/notices/notices.module';
@@ -30,6 +31,7 @@ import { UsersModule } from './modules/users/users.module';
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
 })
