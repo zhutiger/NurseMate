@@ -1,4 +1,7 @@
 # Docker
 
-后续在此维护本地依赖编排、后端镜像和生产部署编排文件。开发环境至少包含 PostgreSQL 与 Redis。
+- `compose.test.yml`：云端 HTTP 测试环境，入口端口为 `8120`。
+- `Dockerfile.gateway`：构建 uni-app H5，并由 Nginx 提供静态资源和 API 反向代理。
+
+环境密钥通过 `/apps/NurseMate/shared/env/test.env` 注入，不进入仓库。
 

@@ -1,0 +1,14 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": { "navigationBarTitleText": "护知音" }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "护知音",
+    "navigationBarBackgroundColor": "#005870",
+    "backgroundColor": "#f4f8f8"
+  }
+}

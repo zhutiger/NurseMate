@@ -1,17 +1,13 @@
-# api
+# 护知音 API
 
-基于 NestJS 和 TypeScript 的模块化单体后端。
+NestJS 模块化单体服务。当前工程骨架提供健康检查、账号密码登录、通知确认和审核任务闭环，作为云端部署与冒烟验证入口。
 
-计划模块：
+```bash
+pnpm --filter @hzy/api build
+pnpm --filter @hzy/api prisma:validate
+pnpm --filter @hzy/api prisma:migrate:deploy
+pnpm --filter @hzy/api seed
+```
 
-- `auth`：微信登录、H5 登录、身份绑定和会话管理。
-- `users`：人员、角色、分组和账号状态。
-- `notices`：通知、版本、接收名单和阅读确认。
-- `tasks`：任务、提交、审核、退回和关闭。
-- `reminders`：站内提醒、订阅消息和人工催办记录。
-- `files`：附件元数据、上传授权和访问控制。
-- `audit`：关键操作审计日志。
-- `reports`：统计查询和数据导出。
-
-数据库模型、迁移和初始化数据统一放在 `prisma` 目录中。
+完整 V1.0 接口以 `docs/api/openapi.yaml` 为契约；当前首个可运行版本不表示所有 V1.0 接口均已实现。
 

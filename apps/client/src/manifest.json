@@ -1,0 +1,13 @@
+{
+  "name": "护知音",
+  "appid": "__UNI__HZY",
+  "description": "护理重要消息与任务闭环管理平台",
+  "versionName": "0.1.0",
+  "versionCode": "100",
+  "transformPx": false,
+  "h5": { "router": { "mode": "hash", "base": "/" } },
+  "mp-weixin": {
+    "appid": "",
+    "setting": { "urlCheck": false, "es6": true, "minified": true }
+  }
+}

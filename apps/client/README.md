@@ -1,13 +1,9 @@
-# client
+# 护知音客户端
 
-基于 uni-app、Vue 3 和 TypeScript 的业务前端，同时构建微信小程序与 H5。
+使用 uni-app、Vue 3、TypeScript 和 Pinia 构建微信小程序与 H5。平台差异集中在 `src/platform`，业务页面不直接调用微信专属 API。
 
-主要职责：
-
-- 护士端首页、消息、任务和我的页面。
-- 护士长移动管理页面。
-- 微信登录、订阅消息、文件选择等平台能力适配。
-- 与 `apps/api` 通信，并复用 `packages` 中的类型、校验和常量。
-
-平台特有代码应集中放入后续创建的 `src/platform`，业务页面不得直接依赖零散的平台判断。
+```bash
+pnpm --filter @hzy/client build:h5
+pnpm --filter @hzy/client build:mp-weixin
+```
 
