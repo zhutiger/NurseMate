@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { hash } from 'argon2';
+import { hashPassword } from '../src/common/password';
 
 const prisma = new PrismaClient();
 
@@ -22,7 +22,7 @@ async function main() {
       name: '测试护士长',
       role: 'HEAD_NURSE',
       status: 'ACTIVE',
-      passwordHash: await hash(headPassword),
+      passwordHash: await hashPassword(headPassword),
       activatedAt: new Date(),
     },
     create: {
@@ -31,7 +31,7 @@ async function main() {
       name: '测试护士长',
       role: 'HEAD_NURSE',
       status: 'ACTIVE',
-      passwordHash: await hash(headPassword),
+      passwordHash: await hashPassword(headPassword),
       activatedAt: new Date(),
     },
   });
@@ -42,7 +42,7 @@ async function main() {
       name: '测试护士',
       role: 'NURSE',
       status: 'ACTIVE',
-      passwordHash: await hash(nursePassword),
+      passwordHash: await hashPassword(nursePassword),
       activatedAt: new Date(),
     },
     create: {
@@ -51,7 +51,7 @@ async function main() {
       name: '测试护士',
       role: 'NURSE',
       status: 'ACTIVE',
-      passwordHash: await hash(nursePassword),
+      passwordHash: await hashPassword(nursePassword),
       activatedAt: new Date(),
     },
   });

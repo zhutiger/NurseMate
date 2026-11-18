@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { verify } from 'argon2';
 import { createHash, randomBytes } from 'node:crypto';
+import { verifyPassword } from '../../common/password';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './auth.dto';
 
@@ -14,7 +14,7 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({ where: { employeeNo: dto.employeeNo } });
-    const valid = Boolean(user?.passwordHash && (await verify(user.passwordHash, dto.password)));
+    const valid = Boolean(user?.passwordHash && (await verifyPassword(user.passwordHash, dto.password)));
     if (!user || user.status !== 'ACTIVE' || !valid) {
       throw new UnauthorizedException('CREDENTIALS_INVALID');
     }
