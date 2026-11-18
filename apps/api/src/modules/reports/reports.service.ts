@@ -1,7 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { AuthUser } from '../../common/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -121,6 +121,7 @@ export class ReportsService {
           sizeBytes: BigInt(content.length),
           sha256: createHash('sha256').update(content).digest('hex'),
           status: 'READY',
+          purpose: 'EXPORT',
           uploadedById: user.id,
           readyAt: now,
         },
@@ -162,16 +163,6 @@ export class ReportsService {
       ...job,
       downloadUrl: job.outputFileId && job.expiresAt && job.expiresAt > new Date() ? `/api/v1/files/${job.outputFileId}/download` : null,
     };
-  }
-
-  async download(user: AuthUser, fileId: string) {
-    const file = await this.prisma.fileObject.findFirst({
-      where: { id: fileId, status: 'READY', uploadedBy: { departmentId: user.departmentId } },
-    });
-    if (!file) throw new NotFoundException('RESOURCE_NOT_FOUND');
-    if (user.role !== 'HEAD_NURSE' && file.uploadedById !== user.id) throw new ForbiddenException('PERMISSION_DENIED');
-    const storageRoot = process.env.FILE_STORAGE_PATH ?? '/data/nursemate';
-    return { file, content: await readFile(join(storageRoot, file.storageKey)) };
   }
 
   async listAuditLogs(user: AuthUser, query: AuditListQueryDto) {

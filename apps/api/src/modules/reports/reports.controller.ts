@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, HttpCode, Param, ParseUUIDPipe, Post, Query, StreamableFile } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common';
 import { AccessService } from '../../common/access.service';
 import { CurrentUser, type AuthUser } from '../../common/current-user.decorator';
 import { response } from '../../common/management';
@@ -29,15 +29,6 @@ export class ReportsController {
   async getExport(@CurrentUser() user: AuthUser, @Param('exportId', ParseUUIDPipe) exportId: string) {
     await this.access.require(user, 'report.export');
     return response(await this.reports.getExport(user, exportId));
-  }
-
-  @Get('files/:fileId/download')
-  @Header('content-type', 'text/csv; charset=utf-8')
-  @Header('content-disposition', 'attachment; filename="nursemate-export.csv"')
-  async download(@CurrentUser() user: AuthUser, @Param('fileId', ParseUUIDPipe) fileId: string) {
-    await this.access.require(user, 'report.export');
-    const result = await this.reports.download(user, fileId);
-    return new StreamableFile(result.content);
   }
 
   @Get('audit-logs')

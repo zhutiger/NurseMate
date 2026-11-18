@@ -1103,7 +1103,7 @@ paths:
           application/json:
             schema:
               type: object
-              required: [fileName, mimeType, sizeBytes, sha256, purpose]
+              required: [fileName, mimeType, sizeBytes, sha256, purpose, contentPolicyAccepted]
               properties:
                 fileName:
                   type: string
@@ -1120,11 +1120,35 @@ paths:
                 purpose:
                   type: string
                   enum: [NOTICE_ATTACHMENT, TASK_ATTACHMENT, TASK_SUBMISSION]
+                contentPolicyAccepted:
+                  type: boolean
+                  const: true
+                  description: 用户已确认附件不包含病历、身份证、具体病情或诊疗影像。
       responses:
         '201':
           description: 文件 ID 和短时上传凭据
         '413':
           description: 文件过大
+
+  /files/{fileId}/content:
+    put:
+      tags: [Files]
+      summary: 上传申请人已获准的附件二进制内容
+      operationId: uploadFileContent
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        '200':
+          description: 内容已暂存，需继续调用完成接口核验
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /files/{fileId}/complete:
     post:

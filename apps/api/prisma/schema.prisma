@@ -100,6 +100,13 @@ enum FileStatus {
   DELETED
 }
 
+enum FilePurpose {
+  NOTICE_ATTACHMENT
+  TASK_ATTACHMENT
+  TASK_SUBMISSION
+  EXPORT
+}
+
 enum AuditResult {
   SUCCESS
   FAILURE
@@ -473,6 +480,7 @@ model FileObject {
   sizeBytes    BigInt
   sha256       String?    @db.VarChar(64)
   status       FileStatus @default(PENDING)
+  purpose      FilePurpose
   uploadedById String     @db.Uuid
   createdAt    DateTime   @default(now()) @db.Timestamptz(3)
   readyAt      DateTime?  @db.Timestamptz(3)

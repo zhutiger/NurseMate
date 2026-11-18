@@ -38,7 +38,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const response = context.switchToHttp().getResponse<Response>();
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
-    if (isPublic || !['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method) || !request.user) return next.handle();
+    if (
+      isPublic
+      || request.is('application/octet-stream')
+      || !['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)
+      || !request.user
+    ) return next.handle();
 
     const idempotencyKey = request.header('idempotency-key');
     if (!idempotencyKey || idempotencyKey.length > 128) throw new ConflictException('IDEMPOTENCY_KEY_REQUIRED');

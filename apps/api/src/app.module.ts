@@ -8,6 +8,7 @@ import { HttpExceptionFilter } from './common/http-exception.filter';
 import { IdempotencyInterceptor } from './common/idempotency.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { FilesModule } from './modules/files/files.module';
 import { NoticesModule } from './modules/notices/notices.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
@@ -28,6 +29,7 @@ import { UsersModule } from './modules/users/users.module';
     AuthModule,
     UsersModule,
     HealthModule,
+    FilesModule,
     NoticesModule,
     TasksModule,
     RemindersModule,
