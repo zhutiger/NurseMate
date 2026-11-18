@@ -20,7 +20,7 @@ export class TasksService {
           feedbackRequired: dto.feedbackRequired,
           attachmentRequired: dto.attachmentRequired,
           deadline: new Date(dto.deadlineAt),
-          assigneeSelection: dto.assigneeSelection as Prisma.InputJsonValue,
+          assigneeSelection: dto.assigneeSelection as unknown as Prisma.InputJsonValue,
           createdById: user.id,
         },
       });

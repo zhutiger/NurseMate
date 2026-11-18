@@ -17,7 +17,7 @@ export class NoticesService {
           level: dto.level,
           requiresConfirmation: dto.requiresConfirmation,
           deadline: dto.deadlineAt ? new Date(dto.deadlineAt) : null,
-          recipientSelection: dto.recipientSelection as Prisma.InputJsonValue,
+          recipientSelection: dto.recipientSelection as unknown as Prisma.InputJsonValue,
           currentVersion: 1,
           createdById: user.id,
         },
