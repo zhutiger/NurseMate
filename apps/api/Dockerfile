@@ -6,7 +6,9 @@ COPY apps/api/package.json apps/api/package.json
 RUN pnpm install --frozen-lockfile --filter @hzy/api...
 COPY apps/api apps/api
 COPY docs/api docs/api
-RUN pnpm --filter @hzy/api prisma:generate && pnpm --filter @hzy/api build
+RUN pnpm --filter @hzy/api prisma:generate \
+    && pnpm --filter @hzy/api check:openapi \
+    && pnpm --filter @hzy/api build
 
 FROM node:20-alpine AS runtime
 RUN apk add --no-cache openssl && corepack enable && corepack prepare pnpm@10.22.0 --activate

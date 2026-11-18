@@ -422,21 +422,16 @@ export class NoticesService {
     if (!notice) throw new NotFoundException('RESOURCE_NOT_FOUND');
     const version = await this.prisma.noticeVersion.findUniqueOrThrow({ where: { noticeId_versionNo: { noticeId, versionNo: notice.currentVersion } } });
     const where: Prisma.NoticeRecipientWhereInput = { noticeId, excludedAt: null };
-    const [recipients, total] = await this.prisma.$transaction([
-      this.prisma.noticeRecipient.findMany({
-        where,
-        orderBy: { user: { name: 'asc' } },
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-        include: {
-          user: { select: { id: true, employeeNo: true, name: true, primaryGroupId: true } },
-          views: { where: { noticeVersionId: version.id } },
-          confirmations: { orderBy: { confirmedAt: 'desc' } },
-        },
-      }),
-      this.prisma.noticeRecipient.count({ where }),
-    ]);
-    const items = recipients.map((recipient) => {
+    const recipients = await this.prisma.noticeRecipient.findMany({
+      where,
+      orderBy: { user: { name: 'asc' } },
+      include: {
+        user: { select: { id: true, employeeNo: true, name: true, primaryGroupId: true } },
+        views: { where: { noticeVersionId: version.id } },
+        confirmations: { orderBy: { confirmedAt: 'desc' } },
+      },
+    });
+    const allItems = recipients.map((recipient) => {
       const currentConfirmation = recipient.confirmations.find((item) => item.noticeVersionId === version.id);
       const priorConfirmation = recipient.confirmations.find((item) => item.noticeVersionId !== version.id);
       const effective = currentConfirmation ?? (!version.reconfirmRequired ? priorConfirmation : undefined);
@@ -451,11 +446,17 @@ export class NoticesService {
         recipientStatus: this.statusFor(version.deadline, recipient.views[0]?.viewedAt ?? null, effective?.confirmedAt ?? null, version.reconfirmRequired, Boolean(priorConfirmation)),
       };
     });
-    const counts = items.reduce<Record<string, number>>((result, item) => {
+    const counts = allItems.reduce<Record<string, number>>((result, item) => {
       result[item.recipientStatus] = (result[item.recipientStatus] ?? 0) + 1;
       return result;
     }, {});
-    return { items, page: this.page(query.page, query.pageSize, total), summary: { total, pageCounts: counts } };
+    const total = allItems.length;
+    const start = (query.page - 1) * query.pageSize;
+    return {
+      items: allItems.slice(start, start + query.pageSize),
+      page: this.page(query.page, query.pageSize, total),
+      summary: { total, counts },
+    };
   }
 
   async addRecipients(user: AuthUser, noticeId: string, selection: RecipientSelectionDto) {

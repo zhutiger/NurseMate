@@ -100,6 +100,8 @@ if (added.addedCount !== 1) throw new Error('Recipient was not added');
 await request(`/notices/${draft.id}/recipients/${head.user.id}/exclude`, {
   method: 'POST', headers: headHeaders, body: JSON.stringify({ reason: '自动化验证误选排除' }),
 });
+const afterExclude = (await request(`/notices/${draft.id}/recipients`, { headers: headHeaders })).data;
+if (afterExclude.summary.total !== 1) throw new Error('Excluded recipient still affects effective statistics');
 await request(`/notices/${draft.id}/close`, {
   method: 'POST', headers: headHeaders, body: JSON.stringify({ reason: '自动化全流程结束' }),
 });
@@ -110,6 +112,19 @@ const cancelDraft = (await request('/notices', {
 })).data;
 await request(`/notices/${cancelDraft.id}`, { method: 'DELETE', headers: headHeaders }, [204]);
 
+const overdueDraft = (await request('/notices', {
+  method: 'POST', headers: headHeaders,
+  body: JSON.stringify({
+    ...draftBody,
+    title: `逾期派生状态 ${Date.now()}`,
+    deadlineAt: new Date(Date.now() + 2000).toISOString(),
+  }),
+})).data;
+await request(`/notices/${overdueDraft.id}/publish`, { method: 'POST', headers: headHeaders });
+await new Promise((resolve) => setTimeout(resolve, 2500));
+const overdueRecipients = (await request(`/notices/${overdueDraft.id}/recipients`, { headers: headHeaders })).data;
+if (overdueRecipients.items[0]?.recipientStatus !== 'OVERDUE_UNSEEN') throw new Error('Overdue unseen status was not derived');
+
 console.log(JSON.stringify({
   smoke: 'notices-ok',
   recipientPreview: true,
@@ -118,5 +133,6 @@ console.log(JSON.stringify({
   duplicateConfirmStable: true,
   versionAndReconfirm: true,
   recipientAddExclude: true,
+  overdueDerived: true,
   close: true,
 }));
