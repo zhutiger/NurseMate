@@ -27,6 +27,7 @@
 | [API 通用约定](./docs/api/conventions.md) | 鉴权、分页、幂等、文件和审计约定 | 所有接口统一遵循 |
 | [需求追踪矩阵](./docs/api/traceability.md) | 需求到接口、数据和验证重点的映射 | 开发提交和验收按需求编号核对 |
 | [云端测试环境规范](./docs/operations/cloud-test-environment.md) | 服务器目录、凭据、部署门禁和检查项 | 构建、联调和验收在云端测试环境执行 |
+| [V1.0 开发清单](./DEVELOPMENT.md) | 需求实现、测试和交付状态 | 每个开发批次完成后同步更新 |
 
 ## 3. V1.0 交付清单
 
