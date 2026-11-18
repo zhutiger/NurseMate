@@ -22,6 +22,7 @@
 | [关键页面与交互原型](./docs/product/page-prototypes.md) | 页面编号、字段、动作和反馈 | 页面实现应保持信息结构和核心动作一致 |
 | [V1.0 验收基线](./docs/product/acceptance.md) | 可验证的完成标准 | 功能完成必须通过对应验收用例 |
 | [可点击原型](./docs/prototype/index.html) | 关键流程演示 | 用于评审信息架构和操作路径，不作为视觉稿逐像素标准 |
+| [电脑管理端原型](./docs/prototype/admin-web.html) | 桌面端导航、表格和管理操作演示 | 电脑管理端信息架构与布局基线 |
 | [数据模型初稿](./docs/architecture/data-model.md) | 表、关系、约束、索引和事务边界 | Prisma 模型与迁移以此为初始依据 |
 | [OpenAPI 初稿](./docs/api/openapi.yaml) | V1.0 路径、请求、响应和枚举 | 前后端不得绕过契约自行定义同名字段 |
 | [API 通用约定](./docs/api/conventions.md) | 鉴权、分页、幂等、文件和审计约定 | 所有接口统一遵循 |
