@@ -10,6 +10,10 @@
     { "path": "pages/admin/dashboard", "style": { "navigationBarTitleText": "管理看板" } },
     { "path": "pages/admin/create-notice", "style": { "navigationBarTitleText": "发布通知" } },
     { "path": "pages/admin/create-task", "style": { "navigationBarTitleText": "发布任务" } }
+    ,{ "path": "pages/admin/notice-detail", "style": { "navigationBarTitleText": "通知管理" } }
+    ,{ "path": "pages/admin/task-detail", "style": { "navigationBarTitleText": "任务管理" } }
+    ,{ "path": "pages/admin/users", "style": { "navigationBarTitleText": "人员管理" } }
+    ,{ "path": "pages/admin/audit", "style": { "navigationBarTitleText": "操作日志" } }
   ],
   "tabBar": {
     "color": "#6b7f84",
