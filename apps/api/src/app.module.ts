@@ -6,6 +6,7 @@ import { AccessModule } from './common/access.module';
 import { AuthGuard } from './common/auth.guard';
 import { HttpExceptionFilter } from './common/http-exception.filter';
 import { IdempotencyInterceptor } from './common/idempotency.interceptor';
+import { RequestLoggingInterceptor } from './common/request-logging.interceptor';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { FilesModule } from './modules/files/files.module';
@@ -38,6 +39,7 @@ import { UsersModule } from './modules/users/users.module';
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: RequestLoggingInterceptor },
     { provide: APP_FILTER, useClass: HttpExceptionFilter },
   ],
 })
