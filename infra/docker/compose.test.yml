@@ -46,6 +46,9 @@ services:
       WECHAT_APP_SECRET: ${WECHAT_APP_SECRET}
       SEED_HEAD_PASSWORD: ${SEED_HEAD_PASSWORD}
       SEED_NURSE_PASSWORD: ${SEED_NURSE_PASSWORD}
+      FILE_STORAGE_PATH: /data/nursemate
+    volumes:
+      - file-data:/data/nursemate
     depends_on:
       postgres:
         condition: service_healthy
@@ -73,6 +76,7 @@ services:
 volumes:
   postgres-data:
   redis-data:
+  file-data:
 
 networks:
   nursemate:

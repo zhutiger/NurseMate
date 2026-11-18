@@ -1140,6 +1140,24 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /files/{fileId}/download:
+    get:
+      tags: [Files]
+      summary: 下载有权访问的附件或导出文件
+      operationId: downloadFile
+      parameters:
+        - $ref: '#/components/parameters/FileId'
+      responses:
+        '200':
+          description: 文件二进制内容
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /audit-logs:
     get:
       tags: [Audit]

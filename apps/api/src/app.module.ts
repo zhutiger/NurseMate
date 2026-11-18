@@ -11,6 +11,7 @@ import { HealthModule } from './modules/health/health.module';
 import { NoticesModule } from './modules/notices/notices.module';
 import { PrismaModule } from './modules/prisma/prisma.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -30,6 +31,7 @@ import { UsersModule } from './modules/users/users.module';
     NoticesModule,
     TasksModule,
     RemindersModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: AuthGuard },
