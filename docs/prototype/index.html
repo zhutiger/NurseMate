@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>护知音 HZY · V1.0 关键页面原型</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="prototype-shell">
+      <aside class="prototype-nav">
+        <div class="brand">
+          <span class="brand-mark">护</span>
+          <div>
+            <strong>护知音 HZY</strong>
+            <span>V1.0 关键页面原型</span>
+          </div>
+        </div>
+
+        <div class="role-switch" aria-label="原型角色切换">
+          <button class="role-button active" data-role="nurse">护士端</button>
+          <button class="role-button" data-role="admin">管理端</button>
+        </div>
+
+        <nav class="screen-menu" data-menu="nurse">
+          <p class="menu-label">护士端页面</p>
+          <button data-screen="bind">首次激活</button>
+          <button data-screen="login">账号登录</button>
+          <button class="active" data-screen="home">首页</button>
+          <button data-screen="messages">消息列表</button>
+          <button data-screen="notice-detail">通知详情</button>
+          <button data-screen="tasks">任务列表</button>
+          <button data-screen="task-detail">任务详情</button>
+          <button data-screen="profile">我的</button>
+        </nav>
+
+        <nav class="screen-menu hidden" data-menu="admin">
+          <p class="menu-label">管理端页面</p>
+          <button data-screen="admin-dashboard">管理首页</button>
+          <button data-screen="publish">发布中心</button>
+          <button data-screen="notice-stats">通知确认明细</button>
+          <button data-screen="task-review">任务审核</button>
+          <button data-screen="people">人员管理</button>
+        </nav>
+
+        <div class="prototype-note">
+          <strong>原型说明</strong>
+          <span>点击页面按钮体验核心流程。数据仅用于演示。</span>
+        </div>
+      </aside>
+
+      <main class="preview-area">
+        <header class="preview-header">
+          <div>
+            <p>产品原型</p>
+            <h1 id="preview-title">护士首页</h1>
+          </div>
+          <span class="status-chip">交互基线</span>
+        </header>
+
+        <div class="device-frame">
+          <div class="device-status">
+            <span>9:41</span>
+            <span>护知音</span>
+            <span>● ●●</span>
+          </div>
+
+          <div class="screens">
+            <section class="screen" data-screen-panel="bind" data-title="账号首次激活">
+              <div class="simple-header">
+                <span class="brand-mark small">护</span>
+                <h2>欢迎使用护知音</h2>
+                <p>首次使用，请核验科室身份</p>
+              </div>
+              <form class="form-stack" id="bind-form">
+                <label>科室工号<input value="PCCM-018" /></label>
+                <label>一次性激活码<input value="836214" /></label>
+                <label>设置登录密码<input type="password" value="NurseMate2026" /></label>
+                <label>确认密码<input type="password" value="NurseMate2026" /></label>
+                <label class="check-row"><input type="checkbox" checked /> 我已阅读用户协议与隐私说明</label>
+                <button class="primary wide" type="submit">激活账号</button>
+              </form>
+              <p class="helper-text">激活后，小程序和 H5 使用同一工号与密码登录。</p>
+            </section>
+
+            <section class="screen" data-screen-panel="login" data-title="账号登录">
+              <div class="simple-header">
+                <span class="brand-mark small">护</span>
+                <h2>登录护知音</h2>
+                <p>小程序与 H5 共用系统账号</p>
+              </div>
+              <form class="form-stack" id="login-form">
+                <label>科室工号<input value="PCCM-018" autocomplete="username" /></label>
+                <label>登录密码<input type="password" value="NurseMate2026" autocomplete="current-password" /></label>
+                <button class="primary wide" type="submit">登录</button>
+                <button class="secondary wide" type="button" data-go="bind">首次使用，激活账号</button>
+              </form>
+              <p class="helper-text">忘记密码请联系护士长生成一次性重置码。</p>
+            </section>
+
+            <section class="screen active" data-screen-panel="home" data-title="护士首页">
+              <div class="hero-card">
+                <div>
+                  <span class="eyebrow">下午好</span>
+                  <h2>刘彩霞</h2>
+                  <p>今天有 2 项工作需要处理</p>
+                </div>
+                <span class="avatar">刘</span>
+              </div>
+
+              <div class="metric-grid">
+                <button class="metric-card" data-go="messages">
+                  <span>待确认消息</span><strong id="home-notice-count">1</strong><small>查看消息</small>
+                </button>
+                <button class="metric-card warm" data-go="tasks">
+                  <span>待完成任务</span><strong id="home-task-count">1</strong><small>查看任务</small>
+                </button>
+              </div>
+
+              <div class="section-heading"><h3>重要提醒</h3><span>今天</span></div>
+              <button class="content-card urgent" data-go="notice-detail">
+                <span class="tag danger">紧急</span>
+                <h4>本周护理质量重点整改通知</h4>
+                <p>请全体护士及时查看质控问题及相关要求。</p>
+                <div class="card-meta"><span>今天 09:30</span><span>待确认 ›</span></div>
+              </button>
+              <button class="content-card" data-go="task-detail">
+                <span class="tag orange">任务</span>
+                <h4>本周培训学习任务</h4>
+                <p>完成学习后提交培训心得。</p>
+                <div class="card-meta"><span>截止 11月20日 18:00</span><span>待完成 ›</span></div>
+              </button>
+
+              <nav class="bottom-nav">
+                <button class="active" data-go="home">首页</button>
+                <button data-go="messages">消息</button>
+                <button data-go="tasks">任务</button>
+                <button data-go="profile">我的</button>
+              </nav>
+            </section>
+
+            <section class="screen" data-screen-panel="messages" data-title="消息列表">
+              <div class="page-title"><h2>消息</h2><span class="count-badge">1 待确认</span></div>
+              <div class="segmented">
+                <button class="active">待确认</button><button>全部</button><button>已确认</button><button>已逾期</button>
+              </div>
+              <button class="list-item" data-go="notice-detail">
+                <span class="level-dot danger"></span>
+                <div><div class="list-title"><strong>本周护理质量重点整改通知</strong><span>紧急</span></div><p>今天 09:30 · 截止今天 18:00</p></div>
+                <span>›</span>
+              </button>
+              <div class="list-item muted-item">
+                <span class="level-dot"></span>
+                <div><div class="list-title"><strong>11月科室会议纪要</strong><span>已确认</span></div><p>11月17日 16:20</p></div>
+                <span>›</span>
+              </div>
+              <nav class="bottom-nav">
+                <button data-go="home">首页</button><button class="active" data-go="messages">消息</button><button data-go="tasks">任务</button><button data-go="profile">我的</button>
+              </nav>
+            </section>
+
+            <section class="screen" data-screen-panel="notice-detail" data-title="通知详情">
+              <div class="top-bar"><button data-go="messages">‹</button><strong>通知详情</strong><span>V1</span></div>
+              <div class="detail-head">
+                <span class="tag danger">紧急</span>
+                <h2>本周护理质量重点整改通知</h2>
+                <p>护理质控组 · 今天 09:30</p>
+              </div>
+              <div class="deadline-box"><span>确认期限</span><strong>今天 18:00</strong><small>剩余 4 小时 12 分</small></div>
+              <article class="rich-content">
+                <p>各位同事：</p>
+                <p>根据本周护理质量检查结果，请重点落实以下整改要求：</p>
+                <ol><li>严格执行氧疗设备检查及交接记录。</li><li>完善危重患者风险评估复核。</li><li>本周内完成相关操作规范学习。</li></ol>
+                <div class="attachment">附件　护理质量整改清单.pdf <span>查看</span></div>
+              </article>
+              <div class="action-area" id="notice-action">
+                <p>点击确认表示本人已阅读并知晓当前版本内容。</p>
+                <button class="primary wide" id="confirm-notice">我已阅读并知晓</button>
+              </div>
+            </section>
+
+            <section class="screen" data-screen-panel="tasks" data-title="任务列表">
+              <div class="page-title"><h2>任务</h2><span class="count-badge orange">1 待完成</span></div>
+              <div class="segmented"><button class="active">待完成</button><button>已提交</button><button>退回补充</button><button>已完成</button></div>
+              <button class="task-list-card" data-go="task-detail">
+                <div class="list-title"><strong>本周培训学习任务</strong><span class="tag orange">需审核</span></div>
+                <p>完成学习后提交不少于 50 字培训心得。</p>
+                <div class="progress-line"><span style="width: 68%"></span></div>
+                <div class="card-meta"><span>截止 11月20日 18:00</span><span id="task-list-status">待完成 ›</span></div>
+              </button>
+              <nav class="bottom-nav">
+                <button data-go="home">首页</button><button data-go="messages">消息</button><button class="active" data-go="tasks">任务</button><button data-go="profile">我的</button>
+              </nav>
+            </section>
+
+            <section class="screen" data-screen-panel="task-detail" data-title="任务详情">
+              <div class="top-bar"><button data-go="tasks">‹</button><strong>任务详情</strong><span>需审核</span></div>
+              <div class="detail-head"><span class="tag orange">重要任务</span><h2>本周培训学习任务</h2><p>教育护士 · 11月18日 10:00</p></div>
+              <div class="deadline-box"><span>完成期限</span><strong>11月20日 18:00</strong><small>剩余 2 天</small></div>
+              <article class="rich-content"><p>请学习《无创呼吸机护理操作规范》，完成后提交不少于 50 字的学习心得。</p><div class="attachment">学习资料　操作规范.pdf <span>查看</span></div></article>
+              <form class="feedback-form" id="task-form">
+                <label>完成反馈<textarea id="task-feedback" rows="4">已完成学习，重点复习了无创通气患者皮肤评估、管路检查及异常情况处理流程。</textarea></label>
+                <button class="upload-button" type="button">＋ 添加附件</button>
+                <button class="primary wide" type="submit">提交反馈</button>
+              </form>
+              <div class="submitted-card hidden" id="submitted-card"><span class="success-mark">✓</span><h3>反馈已提交</h3><p>提交时间：刚刚</p><small>等待管理员审核</small></div>
+            </section>
+
+            <section class="screen" data-screen-panel="profile" data-title="我的">
+              <div class="profile-card"><span class="avatar large">刘</span><div><h2>刘彩霞</h2><p>普通护士 · 呼吸与危重症医学科</p></div></div>
+              <div class="profile-stats"><div><strong>12</strong><span>本月确认</span></div><div><strong>5</strong><span>完成任务</span></div><div><strong>0</strong><span>待补充</span></div></div>
+              <div class="settings-list"><button>我的确认记录 <span>›</span></button><button>我的任务记录 <span>›</span></button><button>订阅消息设置 <span>已授权 ›</span></button><button>帮助与隐私 <span>›</span></button></div>
+              <button class="secondary wide">退出登录</button>
+              <nav class="bottom-nav"><button data-go="home">首页</button><button data-go="messages">消息</button><button data-go="tasks">任务</button><button class="active" data-go="profile">我的</button></nav>
+            </section>
+
+            <section class="screen" data-screen-panel="admin-dashboard" data-title="管理首页">
+              <div class="hero-card admin"><div><span class="eyebrow">管理工作台</span><h2>下午好，护士长</h2><p>4 项内容需要关注</p></div><span class="avatar">长</span></div>
+              <div class="admin-metrics"><button data-go="notice-stats"><strong>4</strong><span>未确认</span></button><button><strong>3</strong><span>未完成</span></button><button data-go="task-review"><strong>2</strong><span>待审核</span></button><button><strong>1</strong><span>已逾期</span></button></div>
+              <div class="quick-actions"><button data-go="publish">＋ 发布通知</button><button data-go="publish">＋ 发布任务</button></div>
+              <div class="section-heading"><h3>需要处理</h3><span>查看全部</span></div>
+              <button class="content-card" data-go="notice-stats"><span class="tag danger">通知</span><h4>本周护理质量重点整改通知</h4><div class="progress-line"><span style="width: 60%"></span></div><div class="card-meta"><span>已确认 6/10</span><span>查看明细 ›</span></div></button>
+              <button class="content-card" data-go="task-review"><span class="tag orange">待审核</span><h4>本周培训学习任务</h4><p>刘彩霞提交了新的完成反馈</p><div class="card-meta"><span>刚刚</span><span>去审核 ›</span></div></button>
+            </section>
+
+            <section class="screen" data-screen-panel="publish" data-title="发布中心">
+              <div class="top-bar"><button data-go="admin-dashboard">‹</button><strong>新建内容</strong><span>草稿</span></div>
+              <div class="type-selector"><button class="active" data-publish-type="notice">阅读确认通知</button><button data-publish-type="task">工作任务</button></div>
+              <form class="form-stack" id="publish-form">
+                <label>标题<input value="本周护理质量重点整改通知" /></label>
+                <label>正文<textarea rows="5">请全体护士及时查看质控问题及相关整改要求，并在期限内完成确认。</textarea></label>
+                <label>重要程度<select><option>普通</option><option selected>重要</option><option>紧急</option></select></label>
+                <label class="hidden" id="completion-mode-field">完成方式<select><option>简单完成</option><option selected>提交反馈并审核</option></select></label>
+                <label>截止时间<input value="2026-11-20 18:00" /></label>
+                <label>接收范围<select><option selected>全体在岗护士（10人）</option><option>按分组选择</option><option>指定人员</option></select></label>
+                <div class="rule-preview"><strong>规则预览</strong><p>向 10 名在岗护士发送一条重要阅读确认通知，在指定期限前完成确认。</p></div>
+                <div class="button-row"><button class="secondary" type="button">保存草稿</button><button class="primary" type="submit">下一步预览</button></div>
+              </form>
+            </section>
+
+            <section class="screen" data-screen-panel="publish-preview" data-title="发布预览">
+              <div class="top-bar"><button data-go="publish">‹</button><strong>发布预览</strong><span>尚未发布</span></div>
+              <div class="preview-warning">请确认内容、期限和接收人数。发布后将生成固定接收名单。</div>
+              <div class="detail-head"><span class="tag orange">重要通知</span><h2>本周护理质量重点整改通知</h2><p>发布人：周护士长</p></div>
+              <article class="rich-content"><p>请全体护士及时查看质控问题及相关整改要求，并在期限内完成确认。</p></article>
+              <div class="review-section"><span>确认期限</span><strong>2026年11月20日 18:00</strong></div>
+              <div class="review-section"><span>接收范围</span><strong>全体在岗护士 · 共 10 人</strong></div>
+              <div class="review-section"><span>规则</span><p>接收人查看正文后主动确认。逾期未确认人员进入管理待跟进名单。</p></div>
+              <div class="button-row"><button class="secondary" data-go="publish">返回修改</button><button class="primary" id="confirm-publish">确认发布</button></div>
+            </section>
+
+            <section class="screen" data-screen-panel="notice-stats" data-title="通知确认明细">
+              <div class="top-bar"><button data-go="admin-dashboard">‹</button><strong>确认明细</strong><span>导出</span></div>
+              <div class="detail-head"><span class="tag danger">紧急</span><h2>本周护理质量重点整改通知</h2><p>有效接收人 10 人</p></div>
+              <div class="stat-row"><div><strong id="confirmed-stat">6</strong><span>已确认</span></div><div><strong id="unconfirmed-stat">4</strong><span>未确认</span></div><div><strong>60%</strong><span>确认率</span></div></div>
+              <div class="segmented"><button class="active">全部</button><button>未确认</button><button>已确认</button></div>
+              <div class="person-list" id="notice-person-list">
+                <div><span class="avatar tiny">张</span><p><strong>张翼</strong><small>今天 10:12 确认</small></p><span class="text-success">已确认</span></div>
+                <div><span class="avatar tiny">刘</span><p><strong>刘彩霞</strong><small>今天 10:25 确认</small></p><span class="text-success">已确认</span></div>
+                <div class="unconfirmed"><span class="avatar tiny neutral">李</span><p><strong>李思远</strong><small>尚未查看</small></p><span class="text-danger">未确认</span></div>
+                <div class="unconfirmed"><span class="avatar tiny neutral">陈</span><p><strong>陈仲敏</strong><small>今天 11:02 已查看</small></p><span class="text-danger">未确认</span></div>
+              </div>
+              <button class="primary wide" id="send-reminder">催办 4 名未确认人员</button>
+            </section>
+
+            <section class="screen" data-screen-panel="task-review" data-title="任务审核">
+              <div class="top-bar"><button data-go="admin-dashboard">‹</button><strong>任务审核</strong><span>1 / 2</span></div>
+              <div class="review-person"><span class="avatar">刘</span><div><h2>刘彩霞</h2><p>提交于今天 14:28 · 第 1 次提交</p></div></div>
+              <div class="review-section"><span>任务</span><strong>本周培训学习任务</strong></div>
+              <div class="review-section"><span>完成反馈</span><p>已完成学习，重点复习了无创通气患者皮肤评估、管路检查及异常情况处理流程。</p></div>
+              <div class="attachment">附件　学习记录.jpg <span>查看</span></div>
+              <label class="review-comment">审核意见<textarea id="review-comment" rows="3" placeholder="退回补充时必填"></textarea></label>
+              <div class="button-row review-actions"><button class="secondary danger-outline" id="reject-task">退回补充</button><button class="primary" id="approve-task">审核通过</button></div>
+              <div class="submitted-card hidden" id="review-result"><span class="success-mark">✓</span><h3>审核已完成</h3><p id="review-result-text">任务已通过</p></div>
+            </section>
+
+            <section class="screen" data-screen-panel="people" data-title="人员管理">
+              <div class="page-title"><h2>人员管理</h2><button class="small-action">＋ 新增</button></div>
+              <div class="search-box">⌕ 搜索姓名或工号</div>
+              <div class="segmented"><button class="active">在岗 10</button><button>待激活 1</button><button>已停用 1</button></div>
+              <div class="person-list">
+                <div><span class="avatar tiny">长</span><p><strong>周护士长</strong><small>PCCM-001</small></p><span>护士长 ›</span></div>
+                <div><span class="avatar tiny">韦</span><p><strong>韦青青</strong><small>PCCM-006 · 教育组</small></p><span>协管员 ›</span></div>
+                <div><span class="avatar tiny neutral">刘</span><p><strong>刘彩霞</strong><small>PCCM-018 · 护理一组</small></p><span>护士 ›</span></div>
+                <div><span class="avatar tiny neutral">李</span><p><strong>李思远</strong><small>PCCM-021 · 护理二组</small></p><span>护士 ›</span></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="toast" id="toast" role="status"></div>
+    <script src="./app.js"></script>
+  </body>
+</html>
+

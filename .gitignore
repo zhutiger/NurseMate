@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+unpackage/
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.ppk
+secrets/
+
+# Runtime data
+uploads/
+tmp/
+*.pid
+*.log
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Test and tool caches
+.cache/
+.turbo/
+.eslintcache
+
