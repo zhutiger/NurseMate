@@ -42,7 +42,7 @@
 
 ```dotenv
 NODE_ENV=test
-APP_BASE_URL=https://test.example.invalid
+APP_BASE_URL=http://test.example.invalid:8101
 DATABASE_URL=postgresql://<user>:<password>@postgres:5432/nursemate
 REDIS_URL=redis://redis:6379/0
 JWT_ACCESS_SECRET=<generated-secret>
@@ -87,7 +87,7 @@ OBJECT_STORAGE_SECRET_KEY=<secret-key>
 - [ ] 部署目录和最小权限运行账号已配置。
 - [ ] Docker、Compose、Nginx、Node/pnpm 构建条件已验证。
 - [ ] PostgreSQL、Redis 和对象存储已配置。
-- [ ] 测试域名和 HTTPS 证书已配置。
+- [x] 测试环境按当前决定使用 HTTP 端口 `8101`；生产上线前仍必须配置域名和可信 HTTPS 证书。
 - [ ] 微信测试 AppID/AppSecret 已通过服务器环境变量注入。
 - [ ] 数据库备份与恢复演练已完成。
 - [ ] 首次部署和跨端冒烟测试已通过。

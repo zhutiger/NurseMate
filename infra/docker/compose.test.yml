@@ -62,7 +62,7 @@ services:
       dockerfile: infra/docker/Dockerfile.gateway
     restart: unless-stopped
     ports:
-      - "8120:80"
+      - "8101:80"
     depends_on:
       api:
         condition: service_healthy

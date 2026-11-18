@@ -10,15 +10,25 @@ servers:
     description: 云端测试环境占位地址
 tags:
   - name: Auth
+    description: 账号激活、登录、会话与微信身份关联
   - name: Me
+    description: 当前登录用户与本人业务数据
   - name: Users
+    description: 科室人员、分组和协管员权限管理
   - name: Notices
+    description: 通知草稿、发布、查看、确认与统计
   - name: Tasks
+    description: 任务发布、提交、审核与执行明细
   - name: Reminders
+    description: 通知和任务催办记录
   - name: Reports
+    description: 管理看板与异步导出
   - name: Files
+    description: 受控附件上传与核验
   - name: Audit
+    description: 本科室只读审计日志
   - name: Health
+    description: 服务存活和依赖就绪检查
 
 paths:
   /auth/activate:
@@ -918,13 +928,7 @@ paths:
                 comment:
                   type: string
                   maxLength: 1000
-              allOf:
-                - if:
-                    properties:
-                      action:
-                        const: RETURN
-                  then:
-                    required: [comment]
+                  description: action 为 RETURN 时必填，由服务端进行条件校验。
       responses:
         '200':
           description: 审核结果
