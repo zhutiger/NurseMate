@@ -28,6 +28,10 @@
 | [需求追踪矩阵](./docs/api/traceability.md) | 需求到接口、数据和验证重点的映射 | 开发提交和验收按需求编号核对 |
 | [云端测试环境规范](./docs/operations/cloud-test-environment.md) | 服务器目录、凭据、部署门禁和检查项 | 构建、联调和验收在云端测试环境执行 |
 | [V1.0 开发清单](./DEVELOPMENT.md) | 需求实现、测试和交付状态 | 每个开发批次完成后同步更新 |
+| [云端部署运行手册](./docs/operations/deployment-runbook.md) | 部署、检查、备份和回退步骤 | 云端发布与故障处理按手册执行 |
+| [本科室试运行检查表](./docs/operations/trial-run-checklist.md) | 试运行前置条件和重点场景 | 现场验收逐项记录结果 |
+| [管理员使用说明](./docs/guides/admin-guide.md) | 人员、发布、审核、提醒和审计操作 | 管理角色培训和试运行参考 |
+| [护士端使用说明](./docs/guides/nurse-guide.md) | 激活、确认、任务和附件操作 | 护士培训和试运行参考 |
 
 ## 3. V1.0 交付清单
 
