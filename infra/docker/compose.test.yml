@@ -44,6 +44,8 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       WECHAT_APP_ID: ${WECHAT_APP_ID}
       WECHAT_APP_SECRET: ${WECHAT_APP_SECRET}
+      SEED_HEAD_PASSWORD: ${SEED_HEAD_PASSWORD}
+      SEED_NURSE_PASSWORD: ${SEED_NURSE_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
