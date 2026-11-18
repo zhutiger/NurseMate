@@ -37,6 +37,17 @@ const group = (await request('/groups', {
   body: JSON.stringify({ code: `S${suffix.slice(-8)}`, name: `冒烟分组-${suffix}`, enabled: true }),
 })).data;
 
+const imported = (await request('/users/import', {
+  method: 'POST', headers: headHeaders,
+  body: JSON.stringify({ rows: [
+    { employeeNo: `smoke-i-${suffix}`, name: '批量导入测试护士', role: 'NURSE', primaryGroupId: group.id },
+    { employeeNo: 'smoke-head', name: '重复工号', role: 'NURSE' },
+  ] }),
+})).data;
+if (imported.succeeded !== 1 || imported.failed !== 1 || imported.results[1]?.errorCode !== 'EMPLOYEE_NO_CONFLICT') {
+  throw new Error('Batch import did not return correct row-level results');
+}
+
 const nurse = (await request('/users', {
   method: 'POST', headers: headHeaders,
   body: JSON.stringify({ employeeNo: `smoke-n-${suffix}`, name: '激活测试护士', role: 'NURSE', primaryGroupId: group.id }),
@@ -140,6 +151,7 @@ console.log(JSON.stringify({
   refreshRotation: true,
   resetAndLogout: true,
   coordinatorPermission: true,
+  batchImportResults: true,
   lastHeadProtection: true,
   disabledSessionRejected: true,
 }));
