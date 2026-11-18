@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import { Prisma } from '@prisma/client';
 import type { AuthUser } from '../../common/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReminderSchedulerService } from '../reminders/reminder-scheduler.service';
 import {
   AssigneeSelectionDto,
   CreateTaskDto,
@@ -18,7 +19,10 @@ type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class TasksService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scheduler: ReminderSchedulerService,
+  ) {}
 
   private json(value: unknown): Prisma.InputJsonValue {
     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -186,7 +190,7 @@ export class TasksService {
   }
 
   async publish(user: AuthUser, taskId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
       if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
       if (task.status !== 'DRAFT') throw new ConflictException('TASK_STATE_CONFLICT');
@@ -204,11 +208,15 @@ export class TasksService {
       });
       return { ...task, status: 'PUBLISHED' as const, assigneeCount: assignees.length };
     });
+    await this.scheduler.scheduleTask(taskId, result.deadline).catch((error) => {
+      console.error(JSON.stringify({ event: 'task_reminder_schedule_failed', taskId, message: (error as Error).message }));
+    });
+    return result;
   }
 
   async changeLifecycle(user: AuthUser, taskId: string, action: 'close' | 'withdraw', dto: OptionalReasonDto | RequiredReasonDto) {
     if (action === 'withdraw' && !dto.reason?.trim()) throw new ConflictException('REASON_REQUIRED');
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
       if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
       if (task.status !== 'PUBLISHED') throw new ConflictException('TASK_STATE_CONFLICT');
@@ -224,6 +232,10 @@ export class TasksService {
       });
       return updated;
     });
+    await this.scheduler.cancel('TASK', taskId).catch((error) => {
+      console.error(JSON.stringify({ event: 'task_reminder_cancel_failed', taskId, message: (error as Error).message }));
+    });
+    return result;
   }
 
   async listMine(user: AuthUser, query: MyTaskListQueryDto) {
@@ -294,6 +306,10 @@ export class TasksService {
         data: { status: 'COMPLETED', completedAt, lockVersion: { increment: 1 } },
       });
       if (changed.count !== 1) throw new ConflictException('TASK_STATE_CONFLICT');
+      await tx.reminder.updateMany({
+        where: { taskRecordId: record.id, status: { in: ['PLANNED', 'FAILED_RETRYABLE'] } },
+        data: { status: 'CANCELLED' },
+      });
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: 'task.complete', targetType: 'task_record', targetId: record.id, result: 'SUCCESS', afterData: { completedAt: completedAt.toISOString() } },
       });
@@ -354,6 +370,12 @@ export class TasksService {
         data: { status: approved ? 'APPROVED' : 'RETURNED', lockVersion: { increment: 1 } },
       });
       if (recordChanged.count !== 1) throw new ConflictException('TASK_STATE_CONFLICT');
+      if (approved) {
+        await tx.reminder.updateMany({
+          where: { taskRecordId: recordId, status: { in: ['PLANNED', 'FAILED_RETRYABLE'] } },
+          data: { status: 'CANCELLED' },
+        });
+      }
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: approved ? 'task.approve' : 'task.return', targetType: 'task_submission', targetId: dto.submissionId, result: 'SUCCESS', reason: dto.comment?.trim() || null },
       });
@@ -416,6 +438,10 @@ export class TasksService {
         data: { status: 'EXCLUDED', excludedAt: new Date(), excludedById: user.id, exclusionReason: dto.reason.trim(), lockVersion: { increment: 1 } },
       });
       if (changed.count !== 1) throw new ConflictException('TASK_STATE_CONFLICT');
+      await tx.reminder.updateMany({
+        where: { taskRecordId: recordId, status: { in: ['PLANNED', 'FAILED_RETRYABLE'] } },
+        data: { status: 'CANCELLED' },
+      });
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: 'task.assignee_exclude', targetType: 'task_record', targetId: recordId, result: 'SUCCESS', reason: dto.reason.trim() },
       });

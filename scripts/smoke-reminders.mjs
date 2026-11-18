@@ -75,6 +75,39 @@ if (taskRecords.items[0].recordStatus !== 'PENDING') throw new Error('Reminder i
 const dashboard = (await request('/me/dashboard', { headers: nurseHeaders })).data;
 if (dashboard.counts.pendingNotices < 1 || dashboard.counts.pendingTasks < 1) throw new Error('Personal dashboard omitted pending work');
 
+const automaticNotice = (await request('/notices', {
+  method: 'POST', headers: headHeaders,
+  body: JSON.stringify({
+    title: `自动提醒通知 ${Date.now()}`, content: '验证 BullMQ 截止前提醒。', level: 'IMPORTANT',
+    requiresConfirmation: true, deadlineAt: new Date(Date.now() + 5000).toISOString(),
+    recipientSelection: { mode: 'USERS', userIds: [nurse.user.id] },
+  }),
+})).data;
+await request(`/notices/${automaticNotice.id}/publish`, { method: 'POST', headers: headHeaders });
+const automaticRecipients = (await request(`/notices/${automaticNotice.id}/recipients`, { headers: headHeaders })).data;
+const automaticRecipientId = automaticRecipients.items[0].recipientId;
+
+const cancellableTask = (await request('/tasks', {
+  method: 'POST', headers: headHeaders,
+  body: JSON.stringify({
+    title: `自动提醒取消 ${Date.now()}`, content: '完成后不应再生成提醒。', level: 'IMPORTANT',
+    completionMode: 'SIMPLE', feedbackRequired: false, attachmentRequired: false,
+    deadlineAt: new Date(Date.now() + 5000).toISOString(),
+    assigneeSelection: { mode: 'USERS', userIds: [nurse.user.id] },
+  }),
+})).data;
+await request(`/tasks/${cancellableTask.id}/publish`, { method: 'POST', headers: headHeaders });
+const cancellableRecord = (await request(`/me/tasks/${cancellableTask.id}`, { headers: nurseHeaders })).data;
+await request(`/me/tasks/${cancellableTask.id}/complete`, { method: 'POST', headers: nurseHeaders });
+await new Promise((resolve) => setTimeout(resolve, 2500));
+const remindersAfterSchedule = (await request('/me/reminders', { headers: nurseHeaders })).data;
+if (!remindersAfterSchedule.some((item) => item.noticeRecipientId === automaticRecipientId && item.channel === 'IN_APP' && item.status === 'SENT')) {
+  throw new Error('BullMQ did not create automatic in-app reminder');
+}
+if (remindersAfterSchedule.some((item) => item.taskRecordId === cancellableRecord.recordId)) {
+  throw new Error('Completed task still received an automatic reminder');
+}
+
 console.log(JSON.stringify({
   smoke: 'reminders-ok',
   personalDashboard: true,
@@ -82,4 +115,6 @@ console.log(JSON.stringify({
   taskReminder: true,
   rateLimit: true,
   businessStateIndependent: true,
+  bullmqAutomaticReminder: true,
+  completedWorkSkipped: true,
 }));

@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, Injectable, NotFoundException } 
 import { Prisma } from '@prisma/client';
 import type { AuthUser } from '../../common/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { ReminderSchedulerService } from '../reminders/reminder-scheduler.service';
 import {
   ConfirmNoticeDto,
   CreateNoticeDto,
@@ -18,7 +19,10 @@ type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class NoticesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scheduler: ReminderSchedulerService,
+  ) {}
 
   private json(value: unknown): Prisma.InputJsonValue {
     return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
@@ -167,7 +171,7 @@ export class NoticesService {
 
   async update(user: AuthUser, noticeId: string, dto: UpdateNoticeDto, canManagePublished: boolean) {
     const deadline = this.validateDeadline(dto.deadlineAt);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const notice = await tx.notice.findFirst({ where: { id: noticeId, departmentId: user.departmentId } });
       if (!notice) throw new NotFoundException('RESOURCE_NOT_FOUND');
       if (notice.status === 'DRAFT' && notice.createdById !== user.id && user.role !== 'HEAD_NURSE') {
@@ -235,6 +239,10 @@ export class NoticesService {
       });
       return updated;
     });
+    if (result.status === 'PUBLISHED') await this.scheduler.scheduleNotice(noticeId, deadline).catch((error) => {
+      console.error(JSON.stringify({ event: 'notice_reminder_schedule_failed', noticeId, message: (error as Error).message }));
+    });
+    return result;
   }
 
   async cancel(user: AuthUser, noticeId: string) {
@@ -252,7 +260,7 @@ export class NoticesService {
   }
 
   async publish(user: AuthUser, noticeId: string) {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const notice = await tx.notice.findFirst({ where: { id: noticeId, departmentId: user.departmentId } });
       if (!notice) throw new NotFoundException('RESOURCE_NOT_FOUND');
       if (notice.status !== 'DRAFT') throw new ConflictException('NOTICE_STATE_CONFLICT');
@@ -281,11 +289,15 @@ export class NoticesService {
       });
       return { ...notice, status: 'PUBLISHED' as const, recipientCount: recipients.length };
     });
+    await this.scheduler.scheduleNotice(noticeId, result.deadline).catch((error) => {
+      console.error(JSON.stringify({ event: 'notice_reminder_schedule_failed', noticeId, message: (error as Error).message }));
+    });
+    return result;
   }
 
   async changeLifecycle(user: AuthUser, noticeId: string, action: 'close' | 'withdraw', dto: OptionalReasonDto | RequiredReasonDto) {
     if (action === 'withdraw' && !dto.reason?.trim()) throw new ConflictException('REASON_REQUIRED');
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const notice = await tx.notice.findFirst({ where: { id: noticeId, departmentId: user.departmentId } });
       if (!notice) throw new NotFoundException('RESOURCE_NOT_FOUND');
       if (notice.status !== 'PUBLISHED') throw new ConflictException('NOTICE_STATE_CONFLICT');
@@ -309,6 +321,10 @@ export class NoticesService {
       });
       return updated;
     });
+    await this.scheduler.cancel('NOTICE', noticeId).catch((error) => {
+      console.error(JSON.stringify({ event: 'notice_reminder_cancel_failed', noticeId, message: (error as Error).message }));
+    });
+    return result;
   }
 
   async listMine(user: AuthUser, query: MyNoticeListQueryDto) {
@@ -402,6 +418,10 @@ export class NoticesService {
       });
       if (existing) return { noticeId, versionNo: dto.versionNo, confirmedAt: existing.confirmedAt };
       const confirmation = await tx.noticeConfirmation.create({ data: { recipientId: recipient.id, noticeVersionId: version.id } });
+      await tx.reminder.updateMany({
+        where: { noticeRecipientId: recipient.id, status: { in: ['PLANNED', 'FAILED_RETRYABLE'] } },
+        data: { status: 'CANCELLED' },
+      });
       await tx.auditLog.create({
         data: {
           departmentId: user.departmentId,
@@ -486,6 +506,11 @@ export class NoticesService {
         data: { excludedAt: new Date(), excludedById: user.id, exclusionReason: dto.reason.trim() },
       });
       if (result.count !== 1) throw new NotFoundException('RESOURCE_NOT_FOUND');
+      const recipient = await tx.noticeRecipient.findFirstOrThrow({ where: { noticeId, userId: targetUserId } });
+      await tx.reminder.updateMany({
+        where: { noticeRecipientId: recipient.id, status: { in: ['PLANNED', 'FAILED_RETRYABLE'] } },
+        data: { status: 'CANCELLED' },
+      });
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: 'notice.recipient_exclude', targetType: 'notice', targetId: noticeId, result: 'SUCCESS', reason: dto.reason.trim(), afterData: { userId: targetUserId } },
       });

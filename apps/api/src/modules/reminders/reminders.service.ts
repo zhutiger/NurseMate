@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { AuthUser } from '../../common/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReminderRequestDto } from './reminders.dto';
+import { ReminderSchedulerService } from './reminder-scheduler.service';
 
 type ReminderTarget = {
   targetType: 'NOTICE_RECIPIENT' | 'TASK_RECORD';
@@ -12,7 +13,10 @@ type ReminderTarget = {
 
 @Injectable()
 export class RemindersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly scheduler: ReminderSchedulerService,
+  ) {}
 
   private async createReminders(user: AuthUser, businessTargetId: string, targets: ReminderTarget[], dto: ReminderRequestDto) {
     if (!targets.length) throw new ConflictException('NO_ELIGIBLE_REMINDER_TARGETS');
@@ -21,7 +25,7 @@ export class RemindersService {
     const dayStart = new Date(now);
     dayStart.setUTCHours(0, 0, 0, 0);
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       for (const target of targets) {
         for (const channel of dto.channels) {
           const targetWhere = target.targetType === 'NOTICE_RECIPIENT'
@@ -52,7 +56,11 @@ export class RemindersService {
           });
         }
       }
-      await tx.reminder.createMany({ data: rows });
+      const wechatReminderIds: string[] = [];
+      for (const row of rows) {
+        const reminder = await tx.reminder.create({ data: row });
+        if (row.channel === 'WECHAT_SUBSCRIBE') wechatReminderIds.push(reminder.id);
+      }
       await tx.auditLog.create({
         data: {
           departmentId: user.departmentId,
@@ -70,8 +78,14 @@ export class RemindersService {
         reminderCount: rows.length,
         channels: dto.channels,
         queuedWechatCount: rows.filter((row) => row.channel === 'WECHAT_SUBSCRIBE').length,
+        wechatReminderIds,
       };
     });
+    await this.scheduler.enqueueWechat(result.wechatReminderIds).catch((error) => {
+      console.error(JSON.stringify({ event: 'wechat_reminder_enqueue_failed', message: (error as Error).message }));
+    });
+    const { wechatReminderIds: _, ...response } = result;
+    return response;
   }
 
   async remindNotice(user: AuthUser, noticeId: string, dto: ReminderRequestDto) {
