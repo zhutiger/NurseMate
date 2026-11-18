@@ -263,7 +263,8 @@ paths:
         - name: status
           in: query
           schema:
-            $ref: '#/components/schemas/TaskRecordStatus'
+            type: string
+            enum: [PENDING, SUBMITTED, RETURNED, APPROVED, COMPLETED, OVERDUE_PENDING, OVERDUE_RETURNED]
       responses:
         '200':
           description: 本人任务分页列表
@@ -816,6 +817,22 @@ paths:
         '201':
           description: 任务草稿
 
+  /tasks/assignee-preview:
+    post:
+      tags: [Tasks]
+      summary: 预览去重后的有效任务负责人
+      operationId: previewTaskAssignees
+      x-permission: task.publish
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipientSelection'
+      responses:
+        '200':
+          description: 实际负责人数及有效人员摘要，不产生任务和负责人记录
+
   /tasks/{taskId}:
     get:
       tags: [Tasks]
@@ -916,6 +933,23 @@ paths:
       responses:
         '200':
           description: 负责人状态、提交版本和审核结果
+    post:
+      tags: [Tasks]
+      summary: 向已发布任务追加负责人
+      operationId: addTaskAssignees
+      x-permission: task.manage
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecipientSelection'
+      responses:
+        '200':
+          description: 追加结果，已存在负责人自动去重
 
   /tasks/{taskId}/records/{recordId}/review:
     post:
