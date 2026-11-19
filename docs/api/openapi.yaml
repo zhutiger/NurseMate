@@ -452,12 +452,52 @@ paths:
       responses:
         '200':
           description: 更新后的分组
+    put:
+      tags: [Users]
+      summary: 修改分组（小程序兼容入口，部分字段更新）
+      operationId: updateGroupForMiniProgram
+      x-permission: user.manage
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GroupRequest'
+      responses:
+        '200':
+          description: 更新后的分组
 
   /users/{userId}:
     patch:
       tags: [Users]
       summary: 修改人员、角色、分组或状态
       operationId: updateUser
+      x-permission: user.manage
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: 更新后的人员
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    put:
+      tags: [Users]
+      summary: 修改人员（小程序兼容入口，部分字段更新）
+      operationId: updateUserForMiniProgram
       x-permission: user.manage
       parameters:
         - $ref: '#/components/parameters/UserId'

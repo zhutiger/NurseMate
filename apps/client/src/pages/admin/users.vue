@@ -55,7 +55,7 @@ async function save() {
   if (!employeeNo.value.trim() || !name.value.trim()) return uni.showToast({ title: '请填写工号和姓名', icon: 'none' });
   try {
     const payload = { employeeNo: employeeNo.value.trim(), name: name.value.trim(), role: role.value, primaryGroupId: groupId.value || null };
-    if (editingId.value) await api(`/users/${editingId.value}`, 'PATCH', { ...payload, reason: '移动端编辑人员账号' });
+    if (editingId.value) await api(`/users/${editingId.value}`, 'PUT', { ...payload, reason: '移动端编辑人员账号' });
     else {
       const user: any = await api('/users', 'POST', payload);
       const code: any = await api(`/users/${user.id}/activation-codes`, 'POST', { purpose: 'ACTIVATE_ACCOUNT', reason: '新增人员首次激活' });
@@ -69,11 +69,11 @@ async function reasonPrompt(title: string): Promise<string | null> {
   const result: any = await new Promise((resolve) => uni.showModal({ title, editable: true, placeholderText: '请输入操作原因', success: resolve }));
   return result.confirm && result.content?.trim() ? result.content.trim() : null;
 }
-async function disable(user: any) { const reason = await reasonPrompt('停用账号'); if (!reason) return; try { await api(`/users/${user.id}`, 'PATCH', { status: 'DISABLED', reason }); await load(); } catch (cause: any) { uni.showToast({ title: cause.message, icon: 'none' }); } }
+async function disable(user: any) { const reason = await reasonPrompt('停用账号'); if (!reason) return; try { await api(`/users/${user.id}`, 'PUT', { status: 'DISABLED', reason }); await load(); } catch (cause: any) { uni.showToast({ title: cause.message, icon: 'none' }); } }
 async function reactivate(user: any) {
   const reason = await reasonPrompt('重新启用并要求再次激活'); if (!reason) return;
   try {
-    await api(`/users/${user.id}`, 'PATCH', { status: 'PENDING_ACTIVATION', reason });
+    await api(`/users/${user.id}`, 'PUT', { status: 'PENDING_ACTIVATION', reason });
     const code: any = await api(`/users/${user.id}/activation-codes`, 'POST', { purpose: 'ACTIVATE_ACCOUNT', reason });
     showCode(user.employeeNo, code.activationCode); await load();
   } catch (cause: any) { uni.showToast({ title: cause.message, icon: 'none' }); await load(); }
@@ -83,7 +83,7 @@ async function activation(user: any) { try { const code: any = await api(`/users
 async function editPermissions(user: any) { try { const result: any = await api(`/users/${user.id}/permissions`); selectedPermissions.value = result.permissions ?? []; permissionTarget.value = user; } catch (cause: any) { uni.showToast({ title: cause.message, icon: 'none' }); } }
 async function savePermissions() { try { await api(`/users/${permissionTarget.value.id}/permissions`, 'PUT', { permissions: selectedPermissions.value }); permissionTarget.value = null; uni.showToast({ title: '权限已保存', icon: 'success' }); } catch (cause: any) { uni.showToast({ title: cause.message, icon: 'none' }); } }
 function editGroup(group?: any) { editingGroupId.value = group?.id ?? ''; groupCode.value = group?.code ?? ''; groupName.value = group?.name ?? ''; groupEnabled.value = group?.enabled ?? true; showGroupForm.value = true; }
-async function saveGroup() { try { const payload = { code: groupCode.value.trim(), name: groupName.value.trim(), enabled: groupEnabled.value }; await api(editingGroupId.value ? `/groups/${editingGroupId.value}` : '/groups', editingGroupId.value ? 'PATCH' : 'POST', payload); showGroupForm.value = false; await load(); } catch (cause: any) { uni.showToast({ title: cause.message, icon: 'none' }); } }
+async function saveGroup() { try { const payload = { code: groupCode.value.trim(), name: groupName.value.trim(), enabled: groupEnabled.value }; await api(editingGroupId.value ? `/groups/${editingGroupId.value}` : '/groups', editingGroupId.value ? 'PUT' : 'POST', payload); showGroupForm.value = false; await load(); } catch (cause: any) { uni.showToast({ title: cause.message, icon: 'none' }); } }
 </script>
 
 <template><view class="page users-page">

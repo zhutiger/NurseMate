@@ -23,18 +23,18 @@ const nurse = await login('smoke-nurse', nursePassword);
 const suffix = Date.now().toString(36);
 
 const group = await request('/groups', 'POST', { code: `U${suffix.slice(-8)}`, name: '回归分组' }, head.accessToken);
-const updatedGroup = await request(`/groups/${group.id}`, 'PATCH', { code: group.code, name: '回归分组已修改', enabled: true }, head.accessToken);
+const updatedGroup = await request(`/groups/${group.id}`, 'PUT', { code: group.code, name: '回归分组已修改', enabled: true }, head.accessToken);
 if (updatedGroup.name !== '回归分组已修改') throw new Error('分组编辑未生效');
 
 const account = await request('/users', 'POST', { employeeNo: `m-${suffix}`, name: '回归护士', role: 'NURSE', primaryGroupId: group.id }, head.accessToken);
 const changedNo = `m2-${suffix}`;
-const edited = await request(`/users/${account.id}`, 'PATCH', { employeeNo: changedNo, name: '回归护士已修改', reason: '验证人员编辑' }, head.accessToken);
+const edited = await request(`/users/${account.id}`, 'PUT', { employeeNo: changedNo, name: '回归护士已修改', reason: '验证人员编辑' }, head.accessToken);
 if (edited.employeeNo !== changedNo || edited.name !== '回归护士已修改') throw new Error('工号或姓名编辑未生效');
-const disabled = await request(`/users/${account.id}`, 'PATCH', { status: 'DISABLED', reason: '云端测试停用原因' }, head.accessToken);
+const disabled = await request(`/users/${account.id}`, 'PUT', { status: 'DISABLED', reason: '云端测试停用原因' }, head.accessToken);
 if (!disabled.disabledAt || disabled.disabledReason !== '云端测试停用原因') throw new Error('停用记录不完整');
 const disabledList = await request('/users?pageSize=100&status=DISABLED', 'GET', undefined, head.accessToken);
 if (!disabledList.items.some((item) => item.id === account.id)) throw new Error('账号状态筛选未返回停用人员');
-const reenabled = await request(`/users/${account.id}`, 'PATCH', { status: 'PENDING_ACTIVATION', reason: '云端测试重新启用' }, head.accessToken);
+const reenabled = await request(`/users/${account.id}`, 'PUT', { status: 'PENDING_ACTIVATION', reason: '云端测试重新启用' }, head.accessToken);
 if (reenabled.status !== 'PENDING_ACTIVATION' || reenabled.disabledReason !== '云端测试停用原因') throw new Error('重新启用或历史停用信息异常');
 const activation = await request(`/users/${account.id}/activation-codes`, 'POST', { purpose: 'ACTIVATE_ACCOUNT', reason: '重新启用测试' }, head.accessToken);
 const activated = await request('/auth/activate', 'POST', { employeeNo: changedNo, activationCode: activation.activationCode, password: `Cloud${suffix}9!`, clientPlatform: 'H5', deviceName: 'reactivation-smoke' });

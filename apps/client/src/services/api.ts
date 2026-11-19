@@ -51,12 +51,12 @@ function rawRequest<T>(path: string, options: UniApp.RequestOptions): Promise<T>
   });
 }
 
-export async function api<T>(path: string, method: string = 'GET', data?: unknown, header?: Record<string, string>): Promise<T> {
+export async function api<T>(path: string, method: UniApp.RequestOptions['method'] = 'GET', data?: unknown, header?: Record<string, string>): Promise<T> {
   const accessToken = uni.getStorageSync(ACCESS_TOKEN_KEY);
   const attempt = async () => {
-    try { return await rawRequest<T>(path, { url: '', method: method as UniApp.RequestOptions['method'], data: data as UniApp.RequestOptions['data'], header }); }
+    try { return await rawRequest<T>(path, { url: '', method, data: data as UniApp.RequestOptions['data'], header }); }
     catch (error: any) {
-      if (method === 'GET' && error?.network) return rawRequest<T>(path, { url: '', method: method as UniApp.RequestOptions['method'], data: data as UniApp.RequestOptions['data'], header });
+      if (method === 'GET' && error?.network) return rawRequest<T>(path, { url: '', method, data: data as UniApp.RequestOptions['data'], header });
       throw error;
     }
   };

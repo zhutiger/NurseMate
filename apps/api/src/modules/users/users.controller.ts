@@ -68,6 +68,16 @@ export class UsersController {
     return response(await this.users.update(user, userId, dto));
   }
 
+  @Put('users/:userId')
+  async updateForMiniProgram(
+    @CurrentUser() user: AuthUser,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: UpdateUserDto,
+  ) {
+    this.access.requireHeadNurse(user);
+    return response(await this.users.update(user, userId, dto));
+  }
+
   @Post('users/:userId/activation-codes')
   async createActivationCode(
     @CurrentUser() user: AuthUser,
@@ -128,6 +138,16 @@ export class UsersController {
 
   @Patch('groups/:groupId')
   async updateGroup(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId', ParseUUIDPipe) groupId: string,
+    @Body() dto: GroupDto,
+  ) {
+    this.access.requireHeadNurse(user);
+    return response(await this.users.updateGroup(user, groupId, dto));
+  }
+
+  @Put('groups/:groupId')
+  async updateGroupForMiniProgram(
     @CurrentUser() user: AuthUser,
     @Param('groupId', ParseUUIDPipe) groupId: string,
     @Body() dto: GroupDto,
