@@ -18,7 +18,7 @@ const errors: Record<string, string> = {
   PERMISSION_DENIED: '没有操作权限',
   RESOURCE_NOT_FOUND: '记录不存在或无权查看', VALIDATION_FAILED: '填写内容不符合要求，请检查后重试',
   STATE_CONFLICT: '当前状态已变化，请刷新后重试', INTERNAL_ERROR: '服务暂时不可用，请稍后重试',
-  EMPLOYEE_NO_CONFLICT: '工号已存在', LAST_HEAD_NURSE_REQUIRED: '必须保留一名在岗护士长',
+  EMPLOYEE_NO_CONFLICT: '工号已存在', GROUP_CONFLICT: '分组代码或名称已存在', LAST_HEAD_NURSE_REQUIRED: '必须保留一名在岗护士长',
   REASON_REQUIRED: '请填写操作原因', DEADLINE_MUST_BE_FUTURE: '截止时间必须晚于当前时间',
   FILE_TYPE_NOT_ALLOWED: '仅支持图片、PDF 和 Word 文件', FILE_VERIFICATION_FAILED: '附件校验失败，请重新上传',
   FILE_UPLOAD_INCOMPLETE: '附件上传未完成', SENSITIVE_CONTENT_PROHIBITED: '请勿上传患者敏感资料',

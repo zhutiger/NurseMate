@@ -6,6 +6,7 @@ import { label } from '../../services/display';
 const uni = (globalThis as any).uni;
 
 const loading = ref(true);
+const loadError = ref('');
 const me = ref<any>(null);
 const dashboard = ref<any>({ counts: {}, notices: [], tasks: [] });
 const greeting = computed(() => new Date().getHours() < 12 ? '上午好' : new Date().getHours() < 18 ? '下午好' : '晚上好');
@@ -13,10 +14,11 @@ const greeting = computed(() => new Date().getHours() < 12 ? '上午好' : new D
 async function load() {
   if (!hasSession()) return uni.reLaunch({ url: '/pages/login/login' });
   loading.value = true;
+  loadError.value = '';
   try {
     [me.value, dashboard.value] = await Promise.all([api('/me'), api('/me/dashboard')]);
   } catch (error: any) {
-    uni.showToast({ title: error.message ?? '加载失败', icon: 'none' });
+    loadError.value = error.message ?? '加载失败，请重试';
   } finally { loading.value = false; }
 }
 
@@ -35,7 +37,7 @@ onShow(load);
     <text class="welcome">{{ greeting }}，{{ me?.user?.name || '护理同事' }}</text>
     <text class="muted">今天有以下事项需要关注</text>
 
-    <view class="metrics">
+    <view v-if="!loadError" class="metrics">
       <view class="metric" @tap="uni.switchTab({ url: '/pages/notices/notices' })">
         <text class="number">{{ dashboard.counts?.pendingNotices ?? 0 }}</text><text>待确认消息</text>
       </view>
@@ -47,6 +49,7 @@ onShow(load);
 
     <text class="section-title">重要提醒</text>
     <view v-if="loading" class="empty">正在加载…</view>
+    <view v-else-if="loadError" class="card empty">{{ loadError }}<button @tap="load">重新加载</button></view>
     <view v-else-if="!dashboard.notices?.length && !dashboard.tasks?.length" class="card empty">当前没有待办事项</view>
     <view v-for="item in dashboard.notices" :key="`n-${item.id}`" class="card item" @tap="uni.navigateTo({ url: `/pages/notices/detail?id=${item.id}` })">
       <view class="tag notice">通知</view><view class="item-main"><text class="item-title">{{ item.title }}</text><text class="muted">{{ label(item.status) }}</text></view><text class="arrow">›</text>

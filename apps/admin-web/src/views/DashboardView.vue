@@ -18,7 +18,7 @@ onMounted(load);
 </script>
 
 <template>
-  <p v-if="error" class="form-error">{{ error }}</p>
+  <p v-if="error" class="form-error">{{ error }} <button class="ghost small-button" @click="load">重试</button></p>
   <div class="metrics">
     <div class="metric"><small>待确认消息</small><strong>{{ data.counts.pendingNotices ?? 0 }}</strong></div>
     <div class="metric"><small>待完成任务</small><strong>{{ data.counts.pendingTasks ?? 0 }}</strong></div>
