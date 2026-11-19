@@ -1,5 +1,6 @@
 import { sha256 } from '../../../../packages/constants/src/sha256';
 import { currentPlatform } from '../platform';
+import { chooseMiniFiles, openMiniAttachment } from '../platform/files';
 import { ACCESS_TOKEN_KEY, API_BASE_URL, api } from './api';
 
 type SelectedFile = { name: string; mimeType: string; size: number; content: ArrayBuffer };
@@ -18,12 +19,10 @@ function validate(name: string, size: number): string {
 
 export async function chooseTaskFiles(): Promise<SelectedFile[]> {
   if (currentPlatform() === 'mp-weixin') {
-    const result: any = await new Promise((resolve, reject) => (uni as any).chooseMessageFile({ count: 9, type: 'file', success: resolve, fail: reject }));
     const selected: SelectedFile[] = [];
-    for (const file of result.tempFiles ?? []) {
+    for (const file of await chooseMiniFiles()) {
       const mimeType = validate(file.name, file.size);
-      const content: ArrayBuffer = await new Promise((resolve, reject) => (uni as any).getFileSystemManager().readFile({ filePath: file.path, success: (value: any) => resolve(value.data), fail: reject }));
-      selected.push({ name: file.name, mimeType, size: file.size, content });
+      selected.push({ ...file, mimeType });
     }
     return selected;
   }
@@ -55,10 +54,7 @@ export async function downloadAttachment(file: { id: string; originalName?: stri
   const url = `${API_BASE_URL}/files/${file.id}/download`;
   const token = uni.getStorageSync(ACCESS_TOKEN_KEY);
   if (currentPlatform() === 'mp-weixin') {
-    const result: any = await new Promise((resolve, reject) => uni.downloadFile({ url, header: { authorization: `Bearer ${token}` }, success: resolve, fail: reject }));
-    if (result.statusCode !== 200) throw new Error('附件下载失败，请重新登录后重试');
-    if (file.mimeType?.startsWith('image/')) return uni.previewImage({ urls: [result.tempFilePath] });
-    return uni.openDocument({ filePath: result.tempFilePath, showMenu: true });
+    return openMiniAttachment(url, token, file.mimeType);
   }
   const result = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
   if (!result.ok) throw new Error('附件下载失败，请重新登录后重试');
