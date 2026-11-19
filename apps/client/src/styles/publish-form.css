@@ -1,0 +1,76 @@
+.publish-page {
+  max-width: 900rpx;
+  margin: 0 auto;
+  padding: 28rpx 28rpx 44rpx;
+}
+
+.publish-intro {
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+  margin-bottom: 22rpx;
+  padding: 34rpx 32rpx;
+  border-radius: 28rpx;
+  color: #fff;
+  background: linear-gradient(135deg, #006d82 0%, #008ea2 68%, #20a9aa 100%);
+  box-shadow: 0 14rpx 36rpx rgba(0, 105, 128, .16);
+}
+
+.publish-page .publish-eyebrow { color: #d2f6f4; font-size: 22rpx; letter-spacing: 2rpx; }
+.publish-page .publish-title { font-size: 42rpx; font-weight: 800; line-height: 1.3; }
+.publish-page .publish-subtitle { color: #e6f8f8; font-size: 25rpx; line-height: 1.5; }
+
+.publish-card {
+  margin-bottom: 20rpx;
+  padding: 30rpx 28rpx 34rpx;
+  border: 1px solid #e2eeee;
+  border-radius: 26rpx;
+  background: #fff;
+  box-shadow: 0 8rpx 28rpx rgba(14, 85, 99, .045);
+}
+
+.publish-page .section-heading { display: flex; align-items: center; gap: 18rpx; padding-bottom: 24rpx; border-bottom: 1px solid #ebf2f2; }
+.publish-page .section-heading > view { display: flex; flex-direction: column; gap: 3rpx; }
+.publish-page .section-number { display: flex; align-items: center; justify-content: center; width: 52rpx; height: 52rpx; flex: none; border-radius: 16rpx; color: #007f95; background: #e8f7f6; font-size: 23rpx; font-weight: 800; }
+.publish-page .section-name { color: #153f48; font-size: 30rpx; font-weight: 750; }
+.publish-page .section-caption { color: #7a9297; font-size: 22rpx; }
+
+.publish-page .form-field { margin-top: 26rpx; }
+.publish-page .field-label { display: block; margin-bottom: 12rpx; color: #315760; font-size: 26rpx; font-weight: 700; }
+.publish-page .required { color: #d6784d; }
+.publish-page .field-control {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 88rpx;
+  padding: 19rpx 22rpx;
+  border: 1px solid #c9dfe0;
+  border-radius: 16rpx;
+  outline: none;
+  color: #173a42;
+  background: #fbfdfd;
+  font-size: 27rpx;
+  line-height: 1.45;
+}
+.publish-page .field-control:focus { border-color: #008ea2; background: #fff; box-shadow: 0 0 0 4rpx rgba(0, 143, 161, .1); }
+.publish-page .textarea { height: 220rpx; min-height: 220rpx; }
+.publish-page .select-field { display: block; width: 100%; }
+.publish-page .select-control { display: flex; align-items: center; justify-content: space-between; gap: 18rpx; padding-right: 30rpx; border-color: #91cbd0; background: #f5fbfb; font-weight: 700; }
+.publish-page .select-chevron { display: block; width: 15rpx; height: 15rpx; flex: none; transform: rotate(45deg) translateY(-3rpx); border-right: 3rpx solid #007f95; border-bottom: 3rpx solid #007f95; }
+.publish-page .field-tip { display: block; margin-top: 10rpx; color: #71898e; font-size: 22rpx; line-height: 1.5; }
+
+.publish-page .quick-hours { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12rpx; margin-bottom: 14rpx; }
+.publish-page .quick-hours button { margin: 0; padding: 3rpx 8rpx; border: 1px solid #bad9dc; border-radius: 14rpx; color: #376e78; background: #f4fafa; font-size: 24rpx; line-height: 2.35; }
+.publish-page .quick-hours button::after { border: 0; }
+.publish-page .quick-hours button.active { border-color: #00879c; color: #fff; background: #00879c; box-shadow: 0 6rpx 14rpx rgba(0, 135, 156, .16); }
+.publish-page .hours-field { position: relative; }
+.publish-page .hours-field .field-control { padding-right: 90rpx; }
+.publish-page .hours-unit { position: absolute; top: 50%; right: 25rpx; transform: translateY(-50%); color: #6d878d; font-size: 24rpx; pointer-events: none; }
+
+.publish-summary { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 20rpx; padding: 24rpx 28rpx; border: 1px solid #d6eae8; border-radius: 20rpx; background: #eff8f6; }
+.publish-page .summary-label { color: #5f7c81; font-size: 24rpx; }
+.publish-page .summary-value { color: #006f81; font-size: 26rpx; font-weight: 750; }
+.publish-actions { position: sticky; bottom: 0; z-index: 2; padding: 18rpx 0 max(12rpx, env(safe-area-inset-bottom)); background: rgba(243, 247, 247, .97); }
+.publish-page .publish-button { width: 100%; margin: 0; border-radius: 18rpx; font-size: 29rpx; font-weight: 700; line-height: 2.8; box-shadow: 0 10rpx 22rpx rgba(0, 127, 149, .18); }
+.publish-page .publish-button::after { border: 0; }
+.publish-page .actions-tip { display: block; padding-top: 10rpx; color: #80959a; font-size: 21rpx; text-align: center; }

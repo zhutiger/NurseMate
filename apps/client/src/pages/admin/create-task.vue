@@ -1,13 +1,20 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { api } from '../../services/api';
+import '../../styles/publish-form.css';
 
 const title = ref('');
 const content = ref('');
 const mode = ref<'REVIEW' | 'SIMPLE'>('REVIEW');
 const deadlineHours = ref('48');
 const working = ref(false);
-const modes = ['REVIEW', 'SIMPLE'] as const;
+const modeOptions = [
+  { value: 'REVIEW', label: '提交后审核', description: '护士提交反馈后，由管理员审核通过才算完成。' },
+  { value: 'SIMPLE', label: '点击即完成', description: '护士点击“已完成”后，系统直接记录完成时间。' },
+] as const;
+const modeLabels = modeOptions.map((option) => option.label);
+const selectedMode = computed(() => modeOptions.findIndex((option) => option.value === mode.value));
+const modeDescription = computed(() => modeOptions[selectedMode.value]?.description ?? '');
 const quickHours = [24, 48, 72];
 const parsedHours = computed(() => Number(deadlineHours.value));
 
@@ -15,7 +22,7 @@ const inputValue = (event: any) => String(event?.detail?.value ?? event?.target?
 const onTitleInput = (event: any) => { title.value = inputValue(event); };
 const onContentInput = (event: any) => { content.value = inputValue(event); };
 const onHoursInput = (event: any) => { deadlineHours.value = inputValue(event).replace(/[^0-9]/g, ''); };
-const onModeChange = (event: any) => { mode.value = modes[Number(event.detail.value)] ?? 'REVIEW'; };
+const onModeChange = (event: any) => { mode.value = modeOptions[Number(event.detail.value)]?.value ?? 'REVIEW'; };
 
 async function publish() {
   const normalizedTitle = title.value.trim();
@@ -58,31 +65,43 @@ async function publish() {
 </script>
 
 <template>
-  <view class="page">
-    <view class="card form">
-      <text class="field-label">任务标题</text>
-      <input class="field-control" type="text" :value="title" maxlength="200" placeholder="请输入任务标题" @input="onTitleInput" />
-      <text class="field-label">任务要求</text>
-      <textarea class="field-control textarea" :value="content" maxlength="20000" placeholder="请输入执行要求" @input="onContentInput" />
-      <text class="field-label">完成方式</text>
-      <picker :range="modes" @change="onModeChange">
-        <view class="field-control picker">{{ mode === 'REVIEW' ? '提交后审核' : '点击即完成' }}</view>
-      </picker>
-      <text class="field-label">完成时限（小时）</text>
-      <view class="quick-hours"><button v-for="value in quickHours" :key="value" type="button" :class="{ active: deadlineHours === String(value) }" @tap="deadlineHours = String(value)">{{ value }}小时</button></view>
-      <input class="field-control" type="number" :value="deadlineHours" placeholder="请输入1～720" @input="onHoursInput" />
-      <text class="field-tip">当前设置：发布后 {{ deadlineHours || '—' }} 小时内完成</text>
+  <view class="page publish-page">
+    <view class="publish-intro">
+      <text class="publish-eyebrow">发布中心 · 工作任务</text>
+      <text class="publish-title">发布新任务</text>
+      <text class="publish-subtitle">说明要做什么、怎样算完成，再核对发布范围。</text>
     </view>
-    <button class="primary-btn publish-button" :loading="working" :disabled="working" @tap="publish">预览并发布</button>
+
+    <view class="publish-card">
+      <view class="section-heading"><text class="section-number">01</text><view><text class="section-name">任务内容</text><text class="section-caption">让接收人清楚了解执行要求</text></view></view>
+      <view class="form-field">
+        <text class="field-label">任务标题 <text class="required">*</text></text>
+        <input class="field-control" type="text" :value="title" maxlength="200" placeholder="例如：本周护理质控整改" @input="onTitleInput" />
+      </view>
+      <view class="form-field">
+        <text class="field-label">任务要求 <text class="required">*</text></text>
+        <textarea class="field-control textarea" :value="content" maxlength="20000" placeholder="写明需要完成的事项与反馈要求" @input="onContentInput" />
+      </view>
+    </view>
+
+    <view class="publish-card">
+      <view class="section-heading"><text class="section-number">02</text><view><text class="section-name">完成规则</text><text class="section-caption">设置完成方式和截止时间</text></view></view>
+      <view class="form-field">
+        <text class="field-label">完成方式 <text class="required">*</text></text>
+        <picker class="select-field" :range="modeLabels" :value="selectedMode" @change="onModeChange">
+          <view class="field-control select-control"><text>{{ modeLabels[selectedMode] }}</text><text class="select-chevron"></text></view>
+        </picker>
+        <text class="field-tip">{{ modeDescription }}</text>
+      </view>
+      <view class="form-field">
+        <text class="field-label">完成时限 <text class="required">*</text></text>
+        <view class="quick-hours"><button v-for="value in quickHours" :key="value" type="button" :class="{ active: deadlineHours === String(value) }" @tap="deadlineHours = String(value)">{{ value }} 小时</button></view>
+        <view class="hours-field"><input class="field-control" type="number" :value="deadlineHours" placeholder="请输入 1～720" @input="onHoursInput" /><text class="hours-unit">小时</text></view>
+        <text class="field-tip">发布后 {{ deadlineHours || '—' }} 小时内完成</text>
+      </view>
+    </view>
+
+    <view class="publish-summary"><text class="summary-label">接收范围</text><text class="summary-value">全体在岗护士</text></view>
+    <view class="publish-actions"><button class="primary-btn publish-button" :loading="working" :disabled="working" @tap="publish">预览并发布</button><text class="actions-tip">发布前将显示实际接收人数，需再次确认</text></view>
   </view>
 </template>
-
-<style scoped>
-.field-label { display:block;margin:24rpx 0 10rpx;color:#36575e;font-weight:700; }
-.field-control { display:block;width:100%;min-height:84rpx;padding:20rpx 22rpx;border:1px solid #cddfe1;border-radius:14rpx;background:#f8fbfb;color:#173a42; }
-.textarea { min-height:280rpx; }.picker { line-height:44rpx; }
-.quick-hours { display:grid;grid-template-columns:repeat(3,1fr);gap:12rpx;margin-bottom:14rpx; }
-.quick-hours button { margin:0;padding:8rpx 10rpx;color:#36717b;font-size:24rpx;line-height:2;border:1px solid #b9d8dc;background:#f5fbfb; }
-.quick-hours button.active { color:#fff;border-color:#0088a0;background:#0088a0; }
-.field-tip { display:block;margin-top:10rpx;color:#71868a;font-size:22rpx; }.publish-button { margin-top:24rpx; }
-</style>
