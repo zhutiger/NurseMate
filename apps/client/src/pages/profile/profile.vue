@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const uni = globalThis.uni;
+const uni = (globalThis as any).uni;
 import { onShow } from '@dcloudio/uni-app';import { computed,ref } from 'vue';import { api,hasSession,logout } from '../../services/api';
 import { label } from '../../services/display';
 const me=ref<any>(null);const isManager=computed(()=>me.value?.user?.role==='HEAD_NURSE'||me.value?.user?.role==='COORDINATOR');

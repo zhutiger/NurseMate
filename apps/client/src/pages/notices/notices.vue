@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const uni = globalThis.uni;
+const uni = (globalThis as any).uni;
 import { onShow } from '@dcloudio/uni-app';
 import { ref } from 'vue';
 import { api, hasSession } from '../../services/api';

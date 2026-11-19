@@ -3,7 +3,7 @@ import { onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { api, hasSession } from '../../services/api';
 import { label } from '../../services/display';
-const uni = globalThis.uni;
+const uni = (globalThis as any).uni;
 
 const loading = ref(true);
 const me = ref<any>(null);
