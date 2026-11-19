@@ -23,17 +23,17 @@ export function sha256(input: ArrayBuffer | Uint8Array): string {
   for (let offset = 0; offset < padded.length; offset += 64) {
     for (let i = 0; i < 16; i++) words[i] = view.getUint32(offset + i * 4, false);
     for (let i = 16; i < 64; i++) {
-      const a = words[i - 15]; const b = words[i - 2];
-      words[i] = (words[i - 16] + (rotate(a, 7) ^ rotate(a, 18) ^ (a >>> 3)) + words[i - 7] + (rotate(b, 17) ^ rotate(b, 19) ^ (b >>> 10))) >>> 0;
+      const a = words[i - 15]!; const b = words[i - 2]!;
+      words[i] = (words[i - 16]! + (rotate(a, 7) ^ rotate(a, 18) ^ (a >>> 3)) + words[i - 7]! + (rotate(b, 17) ^ rotate(b, 19) ^ (b >>> 10))) >>> 0;
     }
-    let [a, b, c, d, e, f, g, h] = hash;
+    let [a, b, c, d, e, f, g, h] = hash as [number, number, number, number, number, number, number, number];
     for (let i = 0; i < 64; i++) {
-      const temp1 = (h + (rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25)) + ((e & f) ^ (~e & g)) + K[i] + words[i]) >>> 0;
+      const temp1 = (h + (rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25)) + ((e & f) ^ (~e & g)) + K[i]! + words[i]!) >>> 0;
       const temp2 = ((rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
       h = g; g = f; f = e; e = (d + temp1) >>> 0; d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
     }
     const next = [a, b, c, d, e, f, g, h];
-    for (let i = 0; i < 8; i++) hash[i] = (hash[i] + next[i]) >>> 0;
+    for (let i = 0; i < 8; i++) hash[i] = (hash[i]! + next[i]!) >>> 0;
   }
   return hash.map((value) => value.toString(16).padStart(8, '0')).join('');
 }
