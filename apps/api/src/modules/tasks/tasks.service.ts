@@ -60,10 +60,10 @@ export class TasksService {
     return tx.user.findMany({ where, select: { id: true, employeeNo: true, name: true, primaryGroupId: true } });
   }
 
-  private async readyFiles(tx: Tx, departmentId: string, uploaderId: string, fileIds: string[] = []) {
+  private async readyFiles(tx: Tx, departmentId: string, uploaderId: string, fileIds: string[] = [], purpose: 'TASK_ATTACHMENT' | 'TASK_SUBMISSION' = 'TASK_ATTACHMENT') {
     if (!fileIds.length) return [];
     const files = await tx.fileObject.findMany({
-      where: { id: { in: fileIds }, status: 'READY', purpose: 'TASK_ATTACHMENT', uploadedById: uploaderId, uploadedBy: { departmentId } },
+      where: { id: { in: fileIds }, status: 'READY', purpose, uploadedById: uploaderId, uploadedBy: { departmentId } },
       select: { id: true },
     });
     if (files.length !== new Set(fileIds).size) throw new ConflictException('ATTACHMENT_NOT_READY');
@@ -328,7 +328,7 @@ export class TasksService {
       if (!['PENDING', 'RETURNED'].includes(record.status)) throw new ConflictException('TASK_STATE_CONFLICT');
       if (record.task.feedbackRequired && !dto.feedback?.trim()) throw new BadRequestException('VALIDATION_FAILED');
       if (record.task.attachmentRequired && !dto.attachmentFileIds?.length) throw new BadRequestException('VALIDATION_FAILED');
-      await this.readyFiles(tx, user.departmentId, dto.attachmentFileIds);
+      await this.readyFiles(tx, user.departmentId, user.id, dto.attachmentFileIds, 'TASK_SUBMISSION');
       const changed = await tx.taskRecord.updateMany({
         where: { id: record.id, status: record.status, lockVersion: record.lockVersion },
         data: { status: 'SUBMITTED', lockVersion: { increment: 1 } },
