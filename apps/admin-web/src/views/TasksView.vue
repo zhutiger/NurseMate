@@ -3,6 +3,9 @@ import { computed, onMounted, ref } from 'vue';
 import { api, download, post, uploadTaskFile } from '../api';
 import { dateTime, label } from '../format';
 
+const props = defineProps<{ permissions: string[] }>();
+const canManage = (permission: string) => props.permissions.includes('*') || props.permissions.includes(permission);
+
 function defaultDeadline() {
   const date = new Date(Date.now() + 48 * 3600000);
   const pad = (value: number) => String(value).padStart(2, '0');
@@ -128,7 +131,7 @@ onMounted(load);
   <div class="page-head"><div><h3>任务列表</h3><span class="muted">区分待完成、已提交、退回补充和审核通过</span></div><div class="page-actions"><button class="secondary" @click="exportRows">导出明细</button><button class="primary" @click="showCreate = true">＋ 发布任务</button></div></div>
   <section class="panel">
     <div class="toolbar"><select v-model="status" @change="changeStatus"><option value="">全部状态</option><option value="DRAFT">草稿</option><option value="PUBLISHED">已发布</option><option value="CLOSED">已关闭</option><option value="WITHDRAWN">已撤回</option><option value="CANCELLED">已取消</option></select><span class="grow"></span><button class="ghost" @click="load">刷新</button></div>
-    <div class="batch-toolbar"><span class="muted">当前页 {{ items.length }} 项 · 已选 {{ selectedItems.length }} 项</span><button class="secondary small-button" :disabled="batchBusy || !selectableFor('close').length" @click="batchChange('close')">批量关闭（{{ selectableFor('close').length }}）</button><button class="danger small-button" :disabled="batchBusy || !selectableFor('cancel').length" @click="batchChange('cancel')">批量取消草稿（{{ selectableFor('cancel').length }}）</button></div>
+    <div class="batch-toolbar"><span class="muted">当前页 {{ items.length }} 项 · 已选 {{ selectedItems.length }} 项</span><button class="secondary small-button" :disabled="batchBusy || !canManage('task.manage') || !selectableFor('close').length" @click="batchChange('close')">批量关闭（{{ selectableFor('close').length }}）</button><button class="danger small-button" :disabled="batchBusy || !canManage('task.publish') || !selectableFor('cancel').length" @click="batchChange('cancel')">批量取消草稿（{{ selectableFor('cancel').length }}）</button></div>
     <p v-if="batchResult" class="batch-result" role="status">{{ batchResult }}</p>
     <p v-if="error" class="form-error">{{ error }} <button class="ghost small-button" @click="load">重试</button></p>
     <div v-if="loading" class="empty">正在加载…</div>

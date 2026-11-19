@@ -42,6 +42,7 @@
 | 催办未确认人员 | ✓ | `notice.remind` | — |
 | 更新、关闭或撤回通知 | ✓ | `notice.manage` | — |
 | 发布任务 | ✓ | `task.publish` | — |
+| 取消未发布的本人任务草稿 | ✓ | `task.publish` | — |
 | 查看任务统计 | ✓ | `task.stats` | — |
 | 催办未完成人员 | ✓ | `task.remind` | — |
 | 审核任务 | ✓ | `task.review` | — |

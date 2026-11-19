@@ -124,7 +124,7 @@ onBeforeUnmount(() => window.removeEventListener('hzy-session-expired', expired)
       <header class="topbar"><div><span class="eyebrow">呼吸与危重症医学科</span><h2>{{ sections.find((item) => item.key === section)?.label }}</h2></div><div class="status-dot"><i></i>系统运行正常</div></header>
       <DashboardView v-if="section === 'dashboard'" @navigate="section = $event" />
       <NoticesView v-else-if="section === 'notices'" />
-      <TasksView v-else-if="section === 'tasks'" />
+      <TasksView v-else-if="section === 'tasks'" :permissions="me?.permissions ?? []" />
       <UsersView v-else-if="section === 'users'" />
       <AuditView v-else />
     </main>
