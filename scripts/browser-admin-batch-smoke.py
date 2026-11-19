@@ -156,7 +156,7 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
           return {close:close.status,cancel:cancel.status,complete:complete.status,submit:submit.status};
         })()""".replace('PASSWORD', json.dumps(nurse_password)).replace('CLOSE_ID', json.dumps(tasks[0]['id'])).replace('CANCEL_ID', json.dumps(tasks[2]['id'])).replace('REVIEW_ID', json.dumps(review_task['id']))
         denied = evaluate(permission_probe, await_promise=True)
-        if denied != {'close': 403, 'cancel': 403, 'complete': 200, 'submit': 200}:
+        if denied != {'close': 403, 'cancel': 403, 'complete': 200, 'submit': 201}:
             raise RuntimeError(f'普通护士越权请求未被拒绝：{denied}')
 
         evaluate("[...document.querySelectorAll('.sidebar nav button')].find(b => b.textContent.includes('任务管理')).click()")
@@ -175,6 +175,13 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
         review = next(item for item in list_counts if item['id'] == review_task['id'])
         if review['pendingReviewCount'] != 1 or review['unfinishedCount'] != review['assigneeCount']:
             raise RuntimeError(f'待审核任务误计入已完成：{review}')
+        review_records = request(f"/tasks/{review_task['id']}/records?pageSize=100")['items']
+        excluded = next(item for item in review_records if item['recordStatus'] == 'PENDING')
+        request(f"/tasks/{review_task['id']}/records/{excluded['id']}/exclude", 'POST',
+                {'reason': '任务统计验收排除负责人'})
+        after_exclusion = next(item for item in request('/tasks?pageSize=100')['items'] if item['id'] == review_task['id'])
+        if after_exclusion['assigneeCount'] != review['assigneeCount'] - 1 or after_exclusion['unfinishedCount'] != review['unfinishedCount'] - 1:
+            raise RuntimeError(f'排除负责人后列表统计未更新：{after_exclusion}')
         countdown = evaluate("""(() => {
           const row = [...document.querySelectorAll('.task-list tbody tr')].find(r => r.textContent.includes(TITLE));
           return row ? {completed:row.children[7].textContent,unfinished:row.children[6].textContent,
@@ -290,7 +297,10 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
         if len(set(accounts)) != 4:
             raise RuntimeError(f'管理端账号状态颜色未区分：{accounts}')
         print(json.dumps({'browser': 'admin-ok', 'batchClose': 2, 'batchCancel': 2,
-                          'mixedSkipped': 2, 'unauthorizedDenied': True, 'audit': 4, 'taskTones': tones,
+                          'mixedSkipped': 2, 'unauthorizedDenied': True, 'audit': 4,
+                          'progress': {'completed': first['completedCount'], 'unfinished': first['unfinishedCount'],
+                                       'pendingReview': review['pendingReviewCount'], 'excludedRemoved': True},
+                          'taskTones': tones,
                           'taskPalette': palette, 'accountPalette': accounts}, ensure_ascii=False))
     finally:
         chrome.terminate()
