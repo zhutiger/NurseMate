@@ -5,6 +5,7 @@ import os
 import subprocess
 import tempfile
 import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -209,6 +210,23 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
         evaluate("""(() => {const select=document.querySelector('.personnel-head select');select.value='COMPLETED';select.dispatchEvent(new Event('change',{bubbles:true}));})()""")
         wait_for("document.querySelectorAll('.task-detail tbody tr').length === 1", '已完成人员筛选')
         evaluate("document.querySelector('.task-detail .modal-head button').click()")
+        expiry_task = request('/tasks', 'POST', {
+            'title': f'批量验收{stamp}-到期显示', 'content': '仅供云端截止显示验收',
+            'level': 'NORMAL', 'completionMode': 'SIMPLE', 'feedbackRequired': False,
+            'attachmentRequired': False,
+            'deadlineAt': (datetime.now(timezone.utc) + timedelta(seconds=8)).isoformat(),
+            'assigneeSelection': {'mode': 'ALL_ACTIVE'},
+        })
+        request(f"/tasks/{expiry_task['id']}/publish", 'POST', {})
+        evaluate("[...document.querySelectorAll('.toolbar button')].find(b => b.textContent.includes('刷新')).click()")
+        expiry_check = """(() => {
+          const row=[...document.querySelectorAll('.task-list tbody tr')].find(r=>r.textContent.includes(TITLE));
+          return row && row.children[3].textContent.trim()==='结束'
+            && row.children[8].textContent.trim()==='00:00:00'
+            && !row.textContent.includes('逾期');
+        })()""".replace('TITLE', json.dumps(expiry_task['title']))
+        wait_for(expiry_check, '到期后状态结束和倒计时归零', attempts=180)
+        request(f"/tasks/{expiry_task['id']}/close", 'POST', {'reason': '云端截止显示验收结束'})
         evaluate('window.confirm = () => true')
 
         def choose_action(action):
@@ -298,6 +316,7 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
             raise RuntimeError(f'管理端账号状态颜色未区分：{accounts}')
         print(json.dumps({'browser': 'admin-ok', 'batchClose': 2, 'batchCancel': 2,
                           'mixedSkipped': 2, 'unauthorizedDenied': True, 'audit': 4,
+                          'expiryDisplay': '结束 / 00:00:00',
                           'progress': {'completed': first['completedCount'], 'unfinished': first['unfinishedCount'],
                                        'pendingReview': review['pendingReviewCount'], 'excludedRemoved': True},
                           'taskTones': tones,

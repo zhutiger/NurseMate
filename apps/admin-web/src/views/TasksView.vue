@@ -35,20 +35,25 @@ const selectedItems = computed(() => items.value.filter((item: any) => selectedI
 const allVisibleSelected = computed(() => items.value.length > 0 && items.value.every((item: any) => selectedIds.value.includes(item.id)));
 const selectableFor = (action: '' | 'close' | 'cancel') => action ? selectedItems.value.filter((item: any) => item.status === (action === 'close' ? 'PUBLISHED' : 'DRAFT')) : [];
 const levelTone = (value: string) => ({ NORMAL: 'tone-normal', IMPORTANT: 'tone-important', URGENT: 'tone-urgent' } as Record<string, string>)[value] ?? 'tone-neutral';
-const statusTone = (value: string) => ({ DRAFT: 'tone-draft', PUBLISHED: 'tone-published', CLOSED: 'tone-closed', WITHDRAWN: 'tone-withdrawn', CANCELLED: 'tone-cancelled' } as Record<string, string>)[value] ?? 'tone-neutral';
+const statusTone = (value: string) => ({ DRAFT: 'tone-draft', PUBLISHED: 'tone-published', ENDED: 'tone-ended', CLOSED: 'tone-closed', WITHDRAWN: 'tone-withdrawn', CANCELLED: 'tone-cancelled' } as Record<string, string>)[value] ?? 'tone-neutral';
+function displayStatus(item: any) {
+  return item.status === 'PUBLISHED' && Date.parse(item.deadline) <= now.value ? 'ENDED' : item.status;
+}
+function displayStatusLabel(item: any) { return displayStatus(item) === 'ENDED' ? '结束' : label(item.status); }
 function remaining(item: any) {
   if (item.status === 'DRAFT') return '未发布';
   if (['CLOSED', 'WITHDRAWN', 'CANCELLED'].includes(item.status)) return '已结束';
   const deadline = Date.parse(item.deadline);
   if (!Number.isFinite(deadline)) return '—';
   const diff = deadline - now.value;
-  const seconds = Math.floor(Math.abs(diff) / 1000);
+  if (diff <= 0) return '00:00:00';
+  const seconds = Math.ceil(diff / 1000);
   const days = Math.floor(seconds / 86400);
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const rest = seconds % 60;
   const duration = `${days ? `${days}天 ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
-  return diff >= 0 ? `剩余 ${duration}` : `已逾期 ${duration}`;
+  return `剩余 ${duration}`;
 }
 
 async function load() {
@@ -190,19 +195,19 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
       <td><button class="link" @click="open(item)">{{ item.title }}</button></td>
       <td>{{ label(item.completionMode) }}</td>
       <td><span :class="['tag', levelTone(item.level)]">{{ label(item.level) }}</span></td>
-      <td><span :class="['tag', statusTone(item.status)]">{{ label(item.status) }}</span></td>
+      <td><span :class="['tag', statusTone(displayStatus(item))]">{{ displayStatusLabel(item) }}</span></td>
       <td>{{ item.publishedAt ? dateTime(item.publishedAt) : '未发布' }}</td>
       <td>{{ dateTime(item.deadline) }}</td>
       <td><span class="count unfinished">{{ item.unfinishedCount }}</span></td>
       <td><span class="count completed">{{ item.completedCount }}</span></td>
-      <td :class="['remaining', item.status === 'PUBLISHED' && Date.parse(item.deadline) < now ? 'overdue-time' : '']">{{ remaining(item) }}</td>
+      <td :class="['remaining', displayStatus(item) === 'ENDED' ? 'ended-time' : '']">{{ remaining(item) }}</td>
       <td><button class="ghost small-button" @click="open(item)">进度与审核</button></td>
     </tr></tbody></table><div v-if="!items.length" class="empty">暂无任务</div></div>
     <div v-if="totalPages > 1" class="pager"><button class="ghost small-button" :disabled="page <= 1 || loading" @click="changePage(page - 1)">上一页</button><span>第 {{ page }} / {{ totalPages }} 页</span><button class="ghost small-button" :disabled="page >= totalPages || loading" @click="changePage(page + 1)">下一页</button></div>
   </section>
   <div v-if="showCreate" class="modal-backdrop"><form class="modal large" @submit.prevent="create"><div class="modal-head"><h3>发布新任务</h3><button type="button" @click="showCreate = false">×</button></div><div class="form-grid"><label class="field full">任务标题<input v-model="form.title" required maxlength="200" /></label><label class="field full">执行要求<textarea v-model="form.content" required maxlength="20000"></textarea></label><label class="field">完成方式<select v-model="form.completionMode"><option value="REVIEW">提交后审核</option><option value="SIMPLE">点击即完成</option></select></label><label class="field">重要程度<select v-model="form.level"><option value="NORMAL">普通</option><option value="IMPORTANT">重要</option><option value="URGENT">紧急</option></select></label><label class="field">完成截止时间（年月日时分）<input v-model="form.deadlineLocal" type="datetime-local" required /></label><label class="field full">任务附件（图片、PDF、Word，单个不超过 10 MB，最多 9 个）<input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" multiple @change="chooseFiles" /></label></div><div v-if="attachmentFiles.length" class="file-list"><div v-for="(file, index) in attachmentFiles" :key="`${file.name}-${index}`"><span>{{ file.name }}</span><button type="button" class="ghost small-button" @click="attachmentFiles.splice(index, 1)">移除</button></div></div><p class="muted">请勿上传患者病历、身份证或具体病情资料。</p><div class="page-actions" style="margin-top:20px;justify-content:flex-end"><button type="button" class="secondary" @click="showCreate = false">取消</button><button class="primary" :disabled="publishing">{{ publishing ? '正在上传并发布…' : '预览人数并发布' }}</button></div></form></div>
   <div v-if="selected" class="modal-backdrop"><div class="modal large task-detail">
-    <div class="modal-head"><div><h3>{{ selected.title }}</h3><span class="muted">{{ label(selected.status) }} · {{ label(selected.completionMode) }} · 发起于 {{ selected.publishedAt ? dateTime(selected.publishedAt) : '未发布' }}</span></div><button @click="selected = null">×</button></div>
+    <div class="modal-head"><div><h3>{{ selected.title }}</h3><span class="muted">{{ displayStatusLabel(selected) }} · {{ label(selected.completionMode) }} · 发起于 {{ selected.publishedAt ? dateTime(selected.publishedAt) : '未发布' }}</span></div><button @click="selected = null">×</button></div>
     <div class="progress-cards">
       <div><span>负责人总数</span><strong>{{ detailCounts.total }}</strong></div>
       <div><span>已完成人数</span><strong class="done-number">{{ detailCounts.completed }}</strong></div>
@@ -237,7 +242,7 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
 .count.unfinished { color:#a85b19; background:#fff0df; }
 .count.completed { color:#25765a; background:#e5f5ed; }
 .remaining { font-variant-numeric:tabular-nums; color:#275f9e; font-weight:700; }
-.remaining.overdue-time { color:#b3403e; }
+.remaining.ended-time { color:#5b6e74; }
 .progress-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0 8px; }
 .progress-cards > div { padding:15px; border:1px solid #dce9e9; border-radius:12px; background:#f7fbfb; }
 .progress-cards span,.progress-cards strong { display:block; }
@@ -255,6 +260,7 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
 .tag.tone-urgent { background:#ffebea; color:#b3403e; }
 .tag.tone-draft { background:#eef1f2; color:#5b6e74; }
 .tag.tone-published { background:#e5effc; color:#275f9e; }
+.tag.tone-ended { background:#eef1f2; color:#4f646b; }
 .tag.tone-closed { background:#e5f5ed; color:#25765a; }
 .tag.tone-withdrawn { background:#fff0df; color:#a85b19; }
 .tag.tone-cancelled { background:#f1eafa; color:#71539a; }

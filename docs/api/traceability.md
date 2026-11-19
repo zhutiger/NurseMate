@@ -25,7 +25,7 @@
 | TASK-07～08 | 明细、关闭和撤回接口 | 任务、记录、提交、审计表 | 状态与明细一致、历史保留 |
 | TASK-10～11 | 文件上传/下载接口、`POST /tasks` | `file_objects`、`task_attachments`、`tasks.deadline` | 图片/PDF/Word 校验、接收人授权下载、分钟精度及过去时间拒绝 |
 | TASK-12 | `DELETE /tasks/{taskId}`、`POST /tasks/{taskId}/close` | `tasks.status`、`audit_logs` | 先选择批量动作再勾选、状态限制、混选跳过、逐项权限和审计、部分失败反馈 |
-| TASK-13 | `GET /tasks`、`GET /tasks/{taskId}/records` | `tasks.published_at/deadline`、有效 `task_records` | 列表完成数与明细一致、待审核计入未完成、排除人员不计入、倒计时跨截止时间 |
+| TASK-13 | `GET /tasks`、`GET /tasks/{taskId}/records` | `tasks.published_at/deadline`、有效 `task_records` | 列表完成数与明细一致、待审核计入未完成、排除人员不计入、到期显示结束及倒计时归零 |
 | REMIND-01 | `GET /me/notices`、`GET /me/tasks` | 接收人与任务记录 | 只返回本人有效未完成事项 |
 | REMIND-02～05 | 通知/任务提醒接口 | `reminders`、BullMQ 作业 | 频率、重试、渠道结果与业务状态分离 |
 | REPORT-01～02 | 本人列表、`GET /dashboard/management` | 业务事实表 | 数据范围、指标可下钻追溯 |
