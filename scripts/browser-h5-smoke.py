@@ -34,18 +34,19 @@ with tempfile.TemporaryDirectory(prefix='nursemate-h5-') as profile:
             raise RuntimeError('Chrome 调试端口未启动')
         port = int(active_port.read_text().splitlines()[0])
         pages = json.load(urlopen(f'http://127.0.0.1:{port}/json/list'))
-        page = next(item for item in pages if item['type'] == 'page')
-        ws = websocket.create_connection(page['webSocketDebuggerUrl'], timeout=20)
+        page = next((item for item in pages if item['type'] == 'page' and item['url'].startswith(base)), None)
+        if page is None:
+            raise RuntimeError(f'Chrome 未打开 H5 页面：{[(item["type"], item["url"]) for item in pages]}')
+        ws = websocket.create_connection(page['webSocketDebuggerUrl'], timeout=60)
         errors = []
         responses = []
         next_id = 0
 
         def command(method, params=None):
-            nonlocal_id = None
             global next_id
             next_id += 1
-            nonlocal_id = next_id
-            ws.send(json.dumps({'id': nonlocal_id, 'method': method, 'params': params or {}}))
+            command_id = next_id
+            ws.send(json.dumps({'id': command_id, 'method': method, 'params': params or {}}))
             while True:
                 message = json.loads(ws.recv())
                 if message.get('method') == 'Runtime.exceptionThrown':
@@ -54,7 +55,7 @@ with tempfile.TemporaryDirectory(prefix='nursemate-h5-') as profile:
                     response = message['params']['response']
                     if '/api/v1/' in response['url']:
                         responses.append((response['status'], response['url'].split('/api/v1/')[-1]))
-                if message.get('id') == nonlocal_id:
+                if message.get('id') == command_id:
                     if 'error' in message:
                         raise RuntimeError(message['error'])
                     return message.get('result', {})
@@ -66,8 +67,7 @@ with tempfile.TemporaryDirectory(prefix='nursemate-h5-') as profile:
         command('Runtime.enable')
         command('Network.enable')
         command('Page.enable')
-        command('Page.navigate', {'url': base})
-        for _ in range(100):
+        for _ in range(400):
             if evaluate("document.body?.innerText.includes('账号登录')"):
                 break
             time.sleep(0.1)
@@ -75,17 +75,19 @@ with tempfile.TemporaryDirectory(prefix='nursemate-h5-') as profile:
             raise RuntimeError(f'H5 未显示登录页：地址={evaluate("location.href")}，正文={evaluate("document.body?.innerText.slice(0, 300)")}，脚本异常={errors[-3:]}')
 
         fill = """(() => {
-          const fields = document.querySelectorAll('.login-card input');
+          const fields = document.querySelectorAll('input');
           if (fields.length < 2) return false;
           for (const [field, value] of [[fields[0], EMPLOYEE], [fields[1], PASSWORD]]) {
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(field, value);
             field.dispatchEvent(new Event('input', { bubbles: true }));
           }
-          document.querySelector('.login-card button.primary').click();
+          document.querySelector('button,uni-button').click();
           return true;
         })()""".replace('EMPLOYEE', json.dumps(employee_no)).replace('PASSWORD', json.dumps(password))
         if not evaluate(fill):
-            raise RuntimeError('H5 登录表单未找到')
+            count = evaluate("document.querySelectorAll('input').length")
+            buttons = evaluate("document.querySelectorAll('button,uni-button').length")
+            raise RuntimeError(f'H5 登录表单未找到：输入框={count}，按钮={buttons}，正文={evaluate("document.body?.innerText.slice(0, 300)")}')
 
         for _ in range(150):
             body = evaluate('document.body?.innerText') or ''
