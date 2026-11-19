@@ -18,7 +18,7 @@ if not password:
     raise SystemExit('缺少 SEED_HEAD_PASSWORD')
 
 
-with tempfile.TemporaryDirectory(prefix='nursemate-h5-') as profile:
+with tempfile.TemporaryDirectory(prefix='nursemate-h5-', ignore_cleanup_errors=True) as profile:
     chrome = subprocess.Popen([
         'google-chrome', '--headless=new', '--no-sandbox', '--disable-gpu',
         '--disable-dev-shm-usage', '--remote-debugging-port=0',
@@ -98,7 +98,28 @@ with tempfile.TemporaryDirectory(prefix='nursemate-h5-') as profile:
             raise RuntimeError(f'H5 登录后未加载数据：{body[:350]}；API：{responses[-8:]}；脚本异常：{errors[-3:]}')
         if not any(path == 'me/dashboard' and status == 200 for status, path in responses):
             raise RuntimeError(f'个人看板接口未成功：{responses[-8:]}')
-        print(json.dumps({'browser': 'h5-ok', 'login': True, 'dashboard': True, 'api': responses[-5:]}, ensure_ascii=False))
+        evaluate("location.hash = '#/pages/admin/users'")
+        for _ in range(150):
+            if evaluate("!!document.querySelector('.account-status.account-active')"):
+                break
+            time.sleep(0.1)
+        else:
+            raise RuntimeError(f'H5 人员状态标签未显示：{evaluate("document.body?.innerText.slice(0, 350)")}；API：{responses[-8:]}')
+        tones = evaluate("""(() => {
+          const tag = document.querySelector('.account-status.account-active');
+          const original = tag.className;
+          const colors = {};
+          for (const state of ['active', 'pending', 'locked', 'disabled']) {
+            tag.className = 'account-status account-' + state;
+            colors[state] = getComputedStyle(tag).backgroundColor;
+          }
+          tag.className = original;
+          return colors;
+        })()""")
+        if len(set(tones.values())) != 4:
+            raise RuntimeError(f'H5 账号状态颜色未区分：{tones}')
+        print(json.dumps({'browser': 'h5-ok', 'login': True, 'dashboard': True,
+                          'accountTones': tones, 'api': responses[-5:]}, ensure_ascii=False))
     finally:
         chrome.terminate()
         try:

@@ -18,7 +18,7 @@ if not password:
     raise SystemExit('缺少 SEED_HEAD_PASSWORD')
 
 
-with tempfile.TemporaryDirectory(prefix='nursemate-admin-') as profile:
+with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_errors=True) as profile:
     chrome = subprocess.Popen([
         'google-chrome', '--headless=new', '--no-sandbox', '--disable-gpu',
         '--disable-dev-shm-usage', '--remote-debugging-port=0',
@@ -196,11 +196,43 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-') as profile:
         })()""")
         if len(tones) < 4 or not all('tone-' in row['level'] and 'tone-' in row['status'] for row in tones):
             raise RuntimeError(f'任务颜色标签缺失：{tones}')
+        palette = evaluate("""(() => {
+          const row = document.querySelector('.data-table tbody tr');
+          const colors = {};
+          for (const [column, prefix, values] of [
+            [3, 'tone-', ['normal', 'important', 'urgent']],
+            [4, 'tone-', ['draft', 'published', 'closed', 'withdrawn', 'cancelled']]
+          ]) {
+            const tag = row.children[column].querySelector('.tag');
+            const original = tag.className;
+            colors[column] = values.map(value => {
+              tag.className = 'tag ' + prefix + value;
+              return getComputedStyle(tag).backgroundColor;
+            });
+            tag.className = original;
+          }
+          return colors;
+        })()""")
+        if len(set(palette['3'])) != 3 or len(set(palette['4'])) != 5:
+            raise RuntimeError(f'任务等级或状态颜色未区分：{palette}')
         evaluate("[...document.querySelectorAll('.sidebar nav button')].find(b => b.textContent.includes('人员管理')).click()")
         wait_for("!!document.querySelector('.data-table tbody .account-active')", '人员状态颜色')
+        accounts = evaluate("""(() => {
+          const tag = document.querySelector('.data-table tbody .account-active');
+          const original = tag.className;
+          const colors = [];
+          for (const state of ['active', 'pending', 'locked', 'disabled']) {
+            tag.className = 'tag account-' + state;
+            colors.push(getComputedStyle(tag).backgroundColor);
+          }
+          tag.className = original;
+          return colors;
+        })()""")
+        if len(set(accounts)) != 4:
+            raise RuntimeError(f'管理端账号状态颜色未区分：{accounts}')
         print(json.dumps({'browser': 'admin-ok', 'batchClose': 2, 'batchCancel': 2,
                           'mixedSkipped': 2, 'unauthorizedDenied': True, 'audit': 4, 'taskTones': tones,
-                          'accountTone': 'account-active'}, ensure_ascii=False))
+                          'taskPalette': palette, 'accountPalette': accounts}, ensure_ascii=False))
     finally:
         chrome.terminate()
         try:
