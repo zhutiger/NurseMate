@@ -854,6 +854,10 @@ paths:
       responses:
         '200':
           description: 任务分页列表
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManagedTaskListResponse'
     post:
       tags: [Tasks]
       summary: 创建任务草稿
@@ -1858,6 +1862,64 @@ components:
           items:
             type: string
             format: uuid
+
+    ManagedTaskListResponse:
+      type: object
+      required: [data, requestId]
+      properties:
+        data:
+          type: object
+          required: [items, page]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/ManagedTaskSummary'
+            page:
+              $ref: '#/components/schemas/PageInfo'
+        requestId:
+          type: string
+
+    ManagedTaskSummary:
+      type: object
+      required: [id, title, status, level, completionMode, deadline, createdAt, assigneeCount, completedCount, unfinishedCount, pendingReviewCount]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: '#/components/schemas/TaskStatus'
+        level:
+          $ref: '#/components/schemas/NoticeLevel'
+        completionMode:
+          $ref: '#/components/schemas/TaskCompletionMode'
+        createdAt:
+          type: string
+          format: date-time
+        publishedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: 任务发起时间；草稿为空
+        deadline:
+          type: string
+          format: date-time
+        assigneeCount:
+          type: integer
+          minimum: 0
+        completedCount:
+          type: integer
+          minimum: 0
+          description: 状态为 COMPLETED 或 APPROVED 的有效负责人
+        unfinishedCount:
+          type: integer
+          minimum: 0
+          description: 有效负责人总数减已完成人数，含待审核
+        pendingReviewCount:
+          type: integer
+          minimum: 0
 
     TaskSummary:
       type: object

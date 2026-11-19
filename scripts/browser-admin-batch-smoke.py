@@ -128,6 +128,13 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
             if publish:
                 request(f"/tasks/{created['id']}/publish", 'POST', {})
             tasks.append(created)
+        review_task = request('/tasks', 'POST', {
+            'title': f'批量验收{stamp}-待审核口径', 'content': '仅供云端任务统计验收',
+            'level': 'NORMAL', 'completionMode': 'REVIEW', 'feedbackRequired': True,
+            'attachmentRequired': False, 'deadlineAt': deadline,
+            'assigneeSelection': {'mode': 'ALL_ACTIVE'},
+        })
+        request(f"/tasks/{review_task['id']}/publish", 'POST', {})
 
         nurse_password = os.environ.get('SEED_NURSE_PASSWORD')
         if not nurse_password:
@@ -143,17 +150,67 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
             ...(method === 'POST' ? {body:'{}'} : {})});
           const close = await fetch('/api/v1/tasks/' + CLOSE_ID + '/close', options('POST'));
           const cancel = await fetch('/api/v1/tasks/' + CANCEL_ID, options('DELETE'));
-          return {close:close.status,cancel:cancel.status};
-        })()""".replace('PASSWORD', json.dumps(nurse_password)).replace('CLOSE_ID', json.dumps(tasks[0]['id'])).replace('CANCEL_ID', json.dumps(tasks[2]['id']))
+          const complete = await fetch('/api/v1/me/tasks/' + CLOSE_ID + '/complete', options('POST'));
+          const submit = await fetch('/api/v1/me/tasks/' + REVIEW_ID + '/submissions', {
+            ...options('POST'),body:JSON.stringify({feedback:'任务统计验收反馈'})});
+          return {close:close.status,cancel:cancel.status,complete:complete.status,submit:submit.status};
+        })()""".replace('PASSWORD', json.dumps(nurse_password)).replace('CLOSE_ID', json.dumps(tasks[0]['id'])).replace('CANCEL_ID', json.dumps(tasks[2]['id'])).replace('REVIEW_ID', json.dumps(review_task['id']))
         denied = evaluate(permission_probe, await_promise=True)
-        if denied != {'close': 403, 'cancel': 403}:
+        if denied != {'close': 403, 'cancel': 403, 'complete': 200, 'submit': 200}:
             raise RuntimeError(f'普通护士越权请求未被拒绝：{denied}')
 
         evaluate("[...document.querySelectorAll('.sidebar nav button')].find(b => b.textContent.includes('任务管理')).click()")
-        wait_for("document.body?.innerText.includes('批量关闭')", '任务列表')
+        wait_for("document.body?.innerText.includes('选择操作后勾选任务')", '任务列表')
         evaluate("[...document.querySelectorAll('.toolbar button')].find(b => b.textContent.includes('刷新')).click()")
         wait_for(f"document.body?.innerText.includes({json.dumps(tasks[0]['title'])})", '新任务列表')
+        if evaluate("document.querySelector('.task-list input[type=checkbox]') !== null"):
+            raise RuntimeError('未选择批量操作时不应显示勾选框')
+        list_counts = request('/tasks?pageSize=100')['items']
+        first = next(item for item in list_counts if item['id'] == tasks[0]['id'])
+        if first['completedCount'] != 1 or first['unfinishedCount'] != first['assigneeCount'] - 1:
+            raise RuntimeError(f'列表完成统计不正确：{first}')
+        draft = next(item for item in list_counts if item['id'] == tasks[2]['id'])
+        if draft['publishedAt'] is not None or draft['completedCount'] != 0:
+            raise RuntimeError(f'草稿发起时间或人数不正确：{draft}')
+        review = next(item for item in list_counts if item['id'] == review_task['id'])
+        if review['pendingReviewCount'] != 1 or review['unfinishedCount'] != review['assigneeCount']:
+            raise RuntimeError(f'待审核任务误计入已完成：{review}')
+        countdown = evaluate("""(() => {
+          const row = [...document.querySelectorAll('.task-list tbody tr')].find(r => r.textContent.includes(TITLE));
+          return row ? {completed:row.children[7].textContent,unfinished:row.children[6].textContent,
+            remaining:row.children[8].textContent} : null;
+        })()""".replace('TITLE', json.dumps(tasks[0]['title'])))
+        if countdown['completed'] != '1' or not countdown['remaining'].startswith('剩余 '):
+            raise RuntimeError(f'任务列表人数或倒计时未显示：{countdown}')
+        time.sleep(1.2)
+        later = evaluate("""(() => [...document.querySelectorAll('.task-list tbody tr')]
+          .find(r => r.textContent.includes(TITLE))?.children[8].textContent)()""".replace('TITLE', json.dumps(tasks[0]['title'])))
+        if later == countdown['remaining']:
+            raise RuntimeError('剩余时间未逐秒更新')
+        detail_expr = """(() => {
+          const row = [...document.querySelectorAll('.task-list tbody tr')].find(r => r.textContent.includes(TITLE));
+          row.querySelector('button:last-child').click();
+        })()""".replace('TITLE', json.dumps(tasks[0]['title']))
+        evaluate(detail_expr)
+        wait_for("!!document.querySelector('.task-detail .progress-cards')", '任务进度看板')
+        overview = evaluate("""(() => ({
+          cards:[...document.querySelectorAll('.task-detail .progress-cards strong')].map(x=>Number(x.textContent)),
+          rows:document.querySelectorAll('.task-detail tbody tr').length,
+        }))()""")
+        if overview['cards'][:3] != [first['assigneeCount'], 1, first['unfinishedCount']] or overview['rows'] != first['assigneeCount']:
+            raise RuntimeError(f'进度看板与人员明细不一致：{overview}')
+        evaluate("""(() => {const select=document.querySelector('.personnel-head select');select.value='COMPLETED';select.dispatchEvent(new Event('change',{bubbles:true}));})()""")
+        wait_for("document.querySelectorAll('.task-detail tbody tr').length === 1", '已完成人员筛选')
+        evaluate("document.querySelector('.task-detail .modal-head button').click()")
         evaluate('window.confirm = () => true')
+
+        def choose_action(action):
+            evaluate("""(() => {
+              const picker=document.querySelector('.batch-choice select');
+              picker.value=ACTION;
+              picker.dispatchEvent(new Event('change',{bubbles:true}));
+            })()""".replace('ACTION', json.dumps(action)))
+            wait_for("!!document.querySelector('.task-list input[type=checkbox]')", '批量勾选入口')
 
         def select(names):
             expression = """(() => {
@@ -170,12 +227,14 @@ with tempfile.TemporaryDirectory(prefix='nursemate-admin-', ignore_cleanup_error
             if result != 'ok':
                 raise RuntimeError(result)
 
+        choose_action('close')
         select([tasks[0]['title'], tasks[1]['title'], tasks[2]['title']])
-        evaluate("[...document.querySelectorAll('.batch-toolbar button')].find(b => b.textContent.includes('批量关闭')).click()")
+        evaluate("[...document.querySelectorAll('.batch-toolbar button')].find(b => b.textContent.includes('执行批量关闭')).click()")
         wait_for("document.querySelector('.batch-result')?.textContent.includes('已关闭 2 项；跳过 1 项；失败 0 项')", '批量关闭')
 
-        select([tasks[3]['title'], tasks[0]['title']])
-        evaluate("[...document.querySelectorAll('.batch-toolbar button')].find(b => b.textContent.includes('批量取消')).click()")
+        choose_action('cancel')
+        select([tasks[2]['title'], tasks[3]['title'], tasks[0]['title']])
+        evaluate("[...document.querySelectorAll('.batch-toolbar button')].find(b => b.textContent.includes('执行批量取消')).click()")
         wait_for("document.querySelector('.batch-result')?.textContent.includes('已取消 2 项；跳过 1 项；失败 0 项')", '批量取消')
 
         expected = ['CLOSED', 'CLOSED', 'CANCELLED', 'CANCELLED']

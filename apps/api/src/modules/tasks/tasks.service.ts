@@ -120,17 +120,39 @@ export class TasksService {
       ...(query.status ? { status: query.status } : {}),
       ...(!canReadAll ? { createdById: user.id } : {}),
     };
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.task.findMany({
-        where,
-        orderBy: { updatedAt: 'desc' },
-        skip: (query.page - 1) * query.pageSize,
-        take: query.pageSize,
-        include: { _count: { select: { records: { where: { excludedAt: null } } } } },
+    const { items, total, progress } = await this.prisma.$transaction(async (tx) => {
+      const [items, total] = await Promise.all([
+        tx.task.findMany({
+          where,
+          orderBy: { updatedAt: 'desc' },
+          skip: (query.page - 1) * query.pageSize,
+          take: query.pageSize,
+          include: { _count: { select: { records: { where: { excludedAt: null } } } } },
+        }),
+        tx.task.count({ where }),
+      ]);
+      const progress = items.length ? await tx.taskRecord.groupBy({
+        by: ['taskId', 'status'],
+        where: { taskId: { in: items.map((item) => item.id) }, excludedAt: null },
+        _count: { _all: true },
+      }) : [];
+      return { items, total, progress };
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
+    const progressByTask = new Map<string, { completed: number; pendingReview: number }>();
+    for (const row of progress) {
+      const count = progressByTask.get(row.taskId) ?? { completed: 0, pendingReview: 0 };
+      if (row.status === 'COMPLETED' || row.status === 'APPROVED') count.completed += row._count._all;
+      if (row.status === 'SUBMITTED') count.pendingReview += row._count._all;
+      progressByTask.set(row.taskId, count);
+    }
+    return {
+      items: items.map(({ _count, ...item }) => {
+        const counts = progressByTask.get(item.id) ?? { completed: 0, pendingReview: 0 };
+        return { ...item, assigneeCount: _count.records, completedCount: counts.completed,
+          unfinishedCount: _count.records - counts.completed, pendingReviewCount: counts.pendingReview };
       }),
-      this.prisma.task.count({ where }),
-    ]);
-    return { items: items.map(({ _count, ...item }) => ({ ...item, assigneeCount: _count.records })), page: this.page(query.page, query.pageSize, total) };
+      page: this.page(query.page, query.pageSize, total),
+    };
   }
 
   async getManaged(user: AuthUser, taskId: string, canReadAll: boolean) {
