@@ -24,12 +24,14 @@
 | TASK-04～06 | 提交接口、`POST /tasks/{taskId}/records/{recordId}/review` | `task_submissions`、附件表、`task_records` | 多次提交不覆盖、并发审核、退回意见 |
 | TASK-07～08 | 明细、关闭和撤回接口 | 任务、记录、提交、审计表 | 状态与明细一致、历史保留 |
 | TASK-10～11 | 文件上传/下载接口、`POST /tasks` | `file_objects`、`task_attachments`、`tasks.deadline` | 图片/PDF/Word 校验、接收人授权下载、分钟精度及过去时间拒绝 |
+| TASK-12 | `DELETE /tasks/{taskId}`、`POST /tasks/{taskId}/close` | `tasks.status`、`audit_logs` | 批量勾选、状态限制、混选跳过、逐项权限和审计、部分失败反馈 |
 | REMIND-01 | `GET /me/notices`、`GET /me/tasks` | 接收人与任务记录 | 只返回本人有效未完成事项 |
 | REMIND-02～05 | 通知/任务提醒接口 | `reminders`、BullMQ 作业 | 频率、重试、渠道结果与业务状态分离 |
 | REPORT-01～02 | 本人列表、`GET /dashboard/management` | 业务事实表 | 数据范围、指标可下钻追溯 |
 | REPORT-03～04 | `POST /exports` | 导出任务、业务事实、审计表 | 权限、字段完整、每次导出审计 |
 | AUDIT-01～02 | `GET /audit-logs` | `audit_logs` | 关键操作覆盖、业务接口不可改删 |
 | CLIENT-05、NFR-08 | H5、小程序与管理端 API 客户端 | 会话、枚举映射 | 中文状态和错误、并发刷新单次执行、失败可重试 |
+| CLIENT-08 | 管理端任务与人员列表 | 任务等级、任务状态、账号状态 | 中文标签和不同颜色并存，筛选与变化后颜色正确 |
 | NFR-01～07 | 全部接口、健康检查 | 事务、索引、幂等、日志、备份 | 性能、并发、权限、恢复、脱敏与告警 |
 
 开发提交应在说明中列出所实现的需求编号和对应验收用例编号；没有需求编号的新增功能不得直接进入 V1.0。
