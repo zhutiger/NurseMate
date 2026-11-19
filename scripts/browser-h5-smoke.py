@@ -65,12 +65,14 @@ with tempfile.TemporaryDirectory(prefix='nursemate-h5-') as profile:
 
         command('Runtime.enable')
         command('Network.enable')
+        command('Page.enable')
+        command('Page.navigate', {'url': base})
         for _ in range(100):
             if evaluate("document.body?.innerText.includes('账号登录')"):
                 break
             time.sleep(0.1)
         else:
-            raise RuntimeError(f'H5 未显示登录页：{evaluate("document.body?.innerText.slice(0, 300)")}')
+            raise RuntimeError(f'H5 未显示登录页：地址={evaluate("location.href")}，正文={evaluate("document.body?.innerText.slice(0, 300)")}，脚本异常={errors[-3:]}')
 
         fill = """(() => {
           const fields = document.querySelectorAll('.login-card input');
