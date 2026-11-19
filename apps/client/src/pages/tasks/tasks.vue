@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const uni = globalThis.uni;
 import { onShow } from '@dcloudio/uni-app';import { ref } from 'vue';import { api,hasSession } from '../../services/api';
 import { label } from '../../services/display';
 const items=ref<any[]>([]);const loading=ref(true);const filter=ref('');
