@@ -22,9 +22,9 @@ const head = await login(headNo, headPassword);
 const nurse = await login('smoke-nurse', nursePassword);
 const suffix = Date.now().toString(36);
 
-const group = await request('/groups', 'POST', { code: `U${suffix.slice(-8)}`, name: '回归分组' }, head.accessToken);
-const updatedGroup = await request(`/groups/${group.id}`, 'PUT', { code: group.code, name: '回归分组已修改', enabled: true }, head.accessToken);
-if (updatedGroup.name !== '回归分组已修改') throw new Error('分组编辑未生效');
+const group = await request('/groups', 'POST', { code: `U${suffix.slice(-8)}`, name: `回归分组-${suffix}` }, head.accessToken);
+const updatedGroup = await request(`/groups/${group.id}`, 'PUT', { code: group.code, name: `回归分组已修改-${suffix}`, enabled: true }, head.accessToken);
+if (updatedGroup.name !== `回归分组已修改-${suffix}`) throw new Error('分组编辑未生效');
 
 const account = await request('/users', 'POST', { employeeNo: `m-${suffix}`, name: '回归护士', role: 'NURSE', primaryGroupId: group.id }, head.accessToken);
 const changedNo = `m2-${suffix}`;
