@@ -13,7 +13,10 @@ const authenticated = ref(hasSession());
 const me = ref<any>(null);
 const employeeNo = ref('admin');
 const password = ref('');
+const resetCode = ref('');
+const resetMode = ref(false);
 const error = ref('');
+const notice = ref('');
 const working = ref(false);
 
 const sections: Array<{ key: Section; label: string; icon: string }> = [
@@ -38,6 +41,7 @@ async function loadMe() {
 
 async function signIn() {
   error.value = '';
+  notice.value = '';
   working.value = true;
   try {
     await login(employeeNo.value.trim(), password.value);
@@ -48,6 +52,16 @@ async function signIn() {
   } finally {
     working.value = false;
   }
+}
+
+async function submitReset() {
+  error.value = ''; notice.value = ''; working.value = true;
+  try {
+    await api('/auth/reset-password', { method: 'POST', body: JSON.stringify({ employeeNo: employeeNo.value.trim(), resetCode: resetCode.value.trim(), newPassword: password.value }) });
+    resetMode.value = false; resetCode.value = ''; password.value = '';
+    notice.value = '密码已重置，请使用新密码登录';
+  } catch (cause: any) { error.value = cause.message; }
+  finally { working.value = false; }
 }
 
 async function signOut() {
@@ -79,16 +93,19 @@ onBeforeUnmount(() => window.removeEventListener('hzy-session-expired', expired)
         <p>护理消息与任务闭环管理平台</p>
       </div>
     </div>
-    <form class="login-card" @submit.prevent="signIn">
+    <form class="login-card" @submit.prevent="resetMode ? submitReset() : signIn()">
       <span class="eyebrow">HZY ADMIN</span>
-      <h2>管理端登录</h2>
-      <p class="muted">护士长与授权协管员使用统一账号登录</p>
+      <h2>{{ resetMode ? '重置管理账号密码' : '管理端登录' }}</h2>
+      <p class="muted">{{ resetMode ? '请输入管理员提供的一次性重置码' : '护士长与授权协管员使用统一账号登录' }}</p>
       <label>工号</label>
       <input v-model="employeeNo" autocomplete="username" placeholder="请输入工号" />
-      <label>密码</label>
-      <input v-model="password" type="password" autocomplete="current-password" placeholder="请输入密码" />
+      <template v-if="resetMode"><label>重置码</label><input v-model="resetCode" required placeholder="请输入一次性重置码" /></template>
+      <label>{{ resetMode ? '新密码' : '密码' }}</label>
+      <input v-model="password" type="password" :autocomplete="resetMode ? 'new-password' : 'current-password'" :placeholder="resetMode ? '至少10位，包含字母和数字' : '请输入密码'" required />
       <p v-if="error" class="form-error">{{ error }}</p>
-      <button class="primary wide" :disabled="working">{{ working ? '正在登录…' : '登录管理后台' }}</button>
+      <p v-if="notice" class="muted">{{ notice }}</p>
+      <button class="primary wide" :disabled="working">{{ working ? '请稍候…' : resetMode ? '确认重置密码' : '登录管理后台' }}</button>
+      <button type="button" class="ghost wide" @click="resetMode = !resetMode; error = ''; notice = ''">{{ resetMode ? '返回登录' : '使用重置码修改密码' }}</button>
       <p class="login-note">重要通知的推送、查看、确认与任务完成是不同状态，管理端将分别统计。</p>
     </form>
   </div>
