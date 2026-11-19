@@ -100,6 +100,10 @@ export class NoticeListQueryDto {
   @IsOptional()
   @IsIn(['DRAFT', 'PUBLISHED', 'CLOSED', 'WITHDRAWN', 'CANCELLED'])
   status?: 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'WITHDRAWN' | 'CANCELLED';
+
+  @IsOptional()
+  @IsIn(['NORMAL', 'IMPORTANT', 'URGENT'])
+  level?: 'NORMAL' | 'IMPORTANT' | 'URGENT';
 }
 
 export class MyNoticeListQueryDto {

@@ -133,6 +133,7 @@ export class NoticesService {
     const where: Prisma.NoticeWhereInput = {
       departmentId: user.departmentId,
       ...(query.status ? { status: query.status } : {}),
+      ...(query.level ? { level: query.level } : {}),
       ...(!canReadAll ? { createdById: user.id } : {}),
     };
     const [items, total] = await this.prisma.$transaction([

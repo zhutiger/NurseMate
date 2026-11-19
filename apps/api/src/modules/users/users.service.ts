@@ -27,6 +27,7 @@ export class UsersService {
     primaryGroupId: true,
     activatedAt: true,
     disabledAt: true,
+    disabledReason: true,
     createdAt: true,
   } satisfies Prisma.UserSelect;
 
@@ -48,7 +49,7 @@ export class UsersService {
     const where: Prisma.UserWhereInput = {
       departmentId: user.departmentId,
       ...(query.role ? { role: query.role } : {}),
-      ...(query.status ? { status: query.status } : full ? {} : { status: 'ACTIVE' }),
+      ...(!full ? { status: 'ACTIVE' } : query.status ? { status: query.status } : {}),
     };
     const [items, total] = await this.prisma.$transaction([
       this.prisma.user.findMany({
@@ -140,12 +141,18 @@ export class UsersService {
     if (target.status === 'DISABLED' && dto.status === 'ACTIVE') {
       throw new ConflictException('REACTIVATION_REQUIRES_ACTIVATION');
     }
+    if (dto.status && dto.status !== target.status && !(
+      dto.status === 'DISABLED'
+      || (target.status === 'DISABLED' && dto.status === 'PENDING_ACTIVATION')
+      || (target.status === 'LOCKED' && dto.status === 'ACTIVE')
+    )) throw new ConflictException('STATE_CONFLICT');
 
-    return this.prisma.$transaction(async (tx) => {
+    try { return await this.prisma.$transaction(async (tx) => {
       const reactivating = target.status === 'DISABLED' && dto.status === 'PENDING_ACTIVATION';
       const updated = await tx.user.update({
         where: { id: target.id },
         data: {
+          ...(dto.employeeNo ? { employeeNo: dto.employeeNo.trim() } : {}),
           ...(dto.name ? { name: dto.name.trim() } : {}),
           ...(dto.role ? { role: dto.role } : {}),
           ...(dto.primaryGroupId !== undefined ? { primaryGroupId: dto.primaryGroupId || null } : {}),
@@ -153,7 +160,7 @@ export class UsersService {
           ...(dto.status === 'DISABLED'
             ? { disabledAt: new Date(), disabledReason: dto.reason }
             : reactivating
-              ? { disabledAt: null, disabledReason: null, passwordHash: null, activatedAt: null }
+              ? { passwordHash: null, activatedAt: null }
               : {}),
           ...(dto.status === 'ACTIVE' ? { lockedUntil: null, failedLoginCount: 0 } : {}),
         },
@@ -165,6 +172,8 @@ export class UsersService {
           data: { revokedAt: new Date(), revokeReason: dto.status === 'DISABLED' ? 'ACCOUNT_DISABLED' : 'ACCOUNT_REACTIVATED' },
         });
       }
+      if (reactivating) await tx.activationCode.updateMany({ where: { userId: target.id, usedAt: null, invalidatedAt: null }, data: { invalidatedAt: new Date() } });
+      if (dto.role && dto.role !== 'COORDINATOR') await tx.userPermission.deleteMany({ where: { userId: target.id } });
       await tx.auditLog.create({
         data: {
           departmentId: actor.departmentId,
@@ -179,7 +188,17 @@ export class UsersService {
         },
       });
       return updated;
-    });
+    }); } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('EMPLOYEE_NO_CONFLICT');
+      throw error;
+    }
+  }
+
+  async getPermissions(actor: AuthUser, userId: string) {
+    const target = await this.prisma.user.findFirst({ where: { id: userId, departmentId: actor.departmentId }, select: { id: true, role: true } });
+    if (!target) throw new NotFoundException('RESOURCE_NOT_FOUND');
+    const permissions = await this.prisma.userPermission.findMany({ where: { userId }, select: { permissionCode: true } });
+    return { permissions: permissions.map((item) => item.permissionCode) };
   }
 
   async createActivationCode(actor: AuthUser, userId: string, dto: ActivationCodeDto) {
@@ -327,7 +346,7 @@ export class UsersService {
   async updateGroup(actor: AuthUser, groupId: string, dto: GroupDto) {
     const target = await this.prisma.nursingGroup.findFirst({ where: { id: groupId, departmentId: actor.departmentId } });
     if (!target) throw new NotFoundException('RESOURCE_NOT_FOUND');
-    return this.prisma.$transaction(async (tx) => {
+    try { return await this.prisma.$transaction(async (tx) => {
       const group = await tx.nursingGroup.update({
         where: { id: groupId },
         data: { code: dto.code.trim().toUpperCase(), name: dto.name.trim(), enabled: dto.enabled },
@@ -345,6 +364,9 @@ export class UsersService {
         },
       });
       return group;
-    });
+    }); } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new ConflictException('GROUP_CONFLICT');
+      throw error;
+    }
   }
 }

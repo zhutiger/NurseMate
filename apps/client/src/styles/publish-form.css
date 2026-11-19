@@ -66,6 +66,10 @@
 .publish-page .hours-field { position: relative; }
 .publish-page .hours-field .field-control { padding-right: 90rpx; }
 .publish-page .hours-unit { position: absolute; top: 50%; right: 25rpx; transform: translateY(-50%); color: #6d878d; font-size: 24rpx; pointer-events: none; }
+.publish-page .deadline-pickers { display:grid; grid-template-columns: 1.5fr 1fr; gap: 12rpx; }
+.publish-page .attachment-button { width:100%; margin:24rpx 0 10rpx; font-size:26rpx; }
+.publish-page .selected-file { display:flex; align-items:center; justify-content:space-between; gap:16rpx; padding:16rpx 4rpx; border-bottom:1px solid #e6eeee; font-size:24rpx; }
+.publish-page .selected-file text:first-child { flex:1; overflow-wrap:anywhere; }
 
 .publish-summary { display: flex; align-items: center; justify-content: space-between; gap: 16rpx; margin-bottom: 20rpx; padding: 24rpx 28rpx; border: 1px solid #d6eae8; border-radius: 20rpx; background: #eff8f6; }
 .publish-page .summary-label { color: #5f7c81; font-size: 24rpx; }

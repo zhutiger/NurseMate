@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { api } from '../../services/api';
+import { chooseTaskFiles, uploadTaskFile } from '../../services/files';
 import '../../styles/publish-form.css';
 
 const title = ref('');
 const content = ref('');
 const mode = ref<'REVIEW' | 'SIMPLE'>('REVIEW');
-const deadlineHours = ref('48');
+const initialDeadline = new Date(Date.now() + 48 * 3600000);
+const pad = (value: number) => String(value).padStart(2, '0');
+const deadlineDate = ref(`${initialDeadline.getFullYear()}-${pad(initialDeadline.getMonth() + 1)}-${pad(initialDeadline.getDate())}`);
+const deadlineTime = ref(`${pad(initialDeadline.getHours())}:${pad(initialDeadline.getMinutes())}`);
+const selectedFiles = ref<Array<{ name: string; mimeType: string; size: number; content: ArrayBuffer }>>([]);
 const working = ref(false);
 const modeOptions = [
   { value: 'REVIEW', label: '提交后审核', description: '护士提交反馈后，由管理员审核通过才算完成。' },
@@ -15,23 +20,29 @@ const modeOptions = [
 const modeLabels = modeOptions.map((option) => option.label);
 const selectedMode = computed(() => modeOptions.findIndex((option) => option.value === mode.value));
 const modeDescription = computed(() => modeOptions[selectedMode.value]?.description ?? '');
-const quickHours = [24, 48, 72];
-const parsedHours = computed(() => Number(deadlineHours.value));
+const deadline = computed(() => new Date(`${deadlineDate.value}T${deadlineTime.value}:00`));
 
 const inputValue = (event: any) => String(event?.detail?.value ?? event?.target?.value ?? '');
 const onTitleInput = (event: any) => { title.value = inputValue(event); };
 const onContentInput = (event: any) => { content.value = inputValue(event); };
-const onHoursInput = (event: any) => { deadlineHours.value = inputValue(event).replace(/[^0-9]/g, ''); };
+const onDateChange = (event: any) => { deadlineDate.value = inputValue(event); };
+const onTimeChange = (event: any) => { deadlineTime.value = inputValue(event); };
 const onModeChange = (event: any) => { mode.value = modeOptions[Number(event.detail.value)]?.value ?? 'REVIEW'; };
+
+async function chooseFiles() {
+  try {
+    const files = await chooseTaskFiles();
+    if (selectedFiles.value.length + files.length > 9) return uni.showToast({ title: '最多添加9个附件', icon: 'none' });
+    selectedFiles.value.push(...files);
+  } catch (error: any) { if (!String(error?.errMsg ?? '').includes('cancel')) uni.showToast({ title: error.message ?? '选择附件失败', icon: 'none' }); }
+}
 
 async function publish() {
   const normalizedTitle = title.value.trim();
   const normalizedContent = content.value.trim();
   if (!normalizedTitle) return uni.showToast({ title: '请填写任务标题', icon: 'none' });
   if (!normalizedContent) return uni.showToast({ title: '请填写任务要求', icon: 'none' });
-  if (!Number.isInteger(parsedHours.value) || parsedHours.value < 1 || parsedHours.value > 720) {
-    return uni.showToast({ title: '完成时限须为1～720小时', icon: 'none' });
-  }
+  if (!Number.isFinite(deadline.value.getTime()) || deadline.value.getTime() <= Date.now()) return uni.showToast({ title: '请选择晚于当前时间的截止时间', icon: 'none' });
   working.value = true;
   try {
     const dto = {
@@ -41,18 +52,20 @@ async function publish() {
       completionMode: mode.value,
       feedbackRequired: mode.value === 'REVIEW',
       attachmentRequired: false,
-      deadlineAt: new Date(Date.now() + parsedHours.value * 3600000).toISOString(),
+      deadlineAt: deadline.value.toISOString(),
       assigneeSelection: { mode: 'ALL_ACTIVE' },
     };
     const preview: any = await api('/tasks/assignee-preview', 'POST', dto.assigneeSelection);
     const accepted = await new Promise<boolean>((resolve) => uni.showModal({
       title: '确认发布',
-      content: `将向 ${preview.assigneeCount} 人发布任务，要求在 ${parsedHours.value} 小时内完成。`,
+      content: `将向 ${preview.assigneeCount} 人发布任务，截止时间 ${deadlineDate.value} ${deadlineTime.value}。`,
       success: (result) => resolve(result.confirm),
       fail: () => resolve(false),
     }));
     if (!accepted) return;
-    const draft: any = await api('/tasks', 'POST', dto);
+    const uploaded = [];
+    for (const file of selectedFiles.value) uploaded.push(await uploadTaskFile(file));
+    const draft: any = await api('/tasks', 'POST', { ...dto, attachmentFileIds: uploaded.map((file) => file.id) });
     await api(`/tasks/${draft.id}/publish`, 'POST');
     uni.showToast({ title: '发布成功', icon: 'success' });
     setTimeout(() => uni.navigateBack(), 500);
@@ -94,12 +107,13 @@ async function publish() {
         <text class="field-tip">{{ modeDescription }}</text>
       </view>
       <view class="form-field">
-        <text class="field-label">完成时限 <text class="required">*</text></text>
-        <view class="quick-hours"><button v-for="value in quickHours" :key="value" type="button" :class="{ active: deadlineHours === String(value) }" @tap="deadlineHours = String(value)">{{ value }} 小时</button></view>
-        <view class="hours-field"><input class="field-control" type="number" :value="deadlineHours" placeholder="请输入 1～720" @input="onHoursInput" /><text class="hours-unit">小时</text></view>
-        <text class="field-tip">发布后 {{ deadlineHours || '—' }} 小时内完成</text>
+        <text class="field-label">完成截止时间 <text class="required">*</text></text>
+        <view class="deadline-pickers"><picker mode="date" :value="deadlineDate" @change="onDateChange"><view class="field-control select-control"><text>{{ deadlineDate }}</text><text class="select-chevron"></text></view></picker><picker mode="time" :value="deadlineTime" @change="onTimeChange"><view class="field-control select-control"><text>{{ deadlineTime }}</text><text class="select-chevron"></text></view></picker></view>
+        <text class="field-tip">请选择年月日和时分，截止时间须晚于当前时间。</text>
       </view>
     </view>
+
+    <view class="publish-card"><view class="section-heading"><text class="section-number">03</text><view class="section-text"><text class="section-name">任务附件</text><text class="section-caption">图片、PDF、Word，最多9个</text></view></view><button class="secondary-btn attachment-button" @tap="chooseFiles">选择图片或文件</button><view v-for="(file, index) in selectedFiles" :key="`${file.name}-${index}`" class="selected-file"><text>{{ file.name }}</text><text class="danger" @tap="selectedFiles.splice(index, 1)">移除</text></view><text class="field-tip">单个不超过10 MB，请勿上传患者敏感资料。</text></view>
 
     <view class="publish-summary"><text class="summary-label">接收范围</text><text class="summary-value">全体在岗护士</text></view>
     <view class="publish-actions"><button class="primary-btn publish-button" :loading="working" :disabled="working" @tap="publish">预览并发布</button><text class="actions-tip">发布前将显示实际接收人数，需再次确认</text></view>

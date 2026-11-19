@@ -60,10 +60,10 @@ export class TasksService {
     return tx.user.findMany({ where, select: { id: true, employeeNo: true, name: true, primaryGroupId: true } });
   }
 
-  private async readyFiles(tx: Tx, departmentId: string, fileIds: string[] = []) {
+  private async readyFiles(tx: Tx, departmentId: string, uploaderId: string, fileIds: string[] = []) {
     if (!fileIds.length) return [];
     const files = await tx.fileObject.findMany({
-      where: { id: { in: fileIds }, status: 'READY', uploadedBy: { departmentId } },
+      where: { id: { in: fileIds }, status: 'READY', purpose: 'TASK_ATTACHMENT', uploadedById: uploaderId, uploadedBy: { departmentId } },
       select: { id: true },
     });
     if (files.length !== new Set(fileIds).size) throw new ConflictException('ATTACHMENT_NOT_READY');
@@ -87,7 +87,7 @@ export class TasksService {
     return this.prisma.$transaction(async (tx) => {
       const assignees = await this.resolveAssignees(tx, user.departmentId, dto.assigneeSelection);
       if (!assignees.length) throw new ConflictException('TASK_ASSIGNEES_EMPTY');
-      await this.readyFiles(tx, user.departmentId, dto.attachmentFileIds);
+      await this.readyFiles(tx, user.departmentId, user.id, dto.attachmentFileIds);
       const task = await tx.task.create({
         data: {
           departmentId: user.departmentId,
@@ -156,7 +156,7 @@ export class TasksService {
       if (task.createdById !== user.id && user.role !== 'HEAD_NURSE') throw new ForbiddenException('PERMISSION_DENIED');
       const assignees = await this.resolveAssignees(tx, user.departmentId, dto.assigneeSelection);
       if (!assignees.length) throw new ConflictException('TASK_ASSIGNEES_EMPTY');
-      await this.readyFiles(tx, user.departmentId, dto.attachmentFileIds);
+      await this.readyFiles(tx, user.departmentId, user.id, dto.attachmentFileIds);
       await tx.taskAttachment.deleteMany({ where: { taskId } });
       if (dto.attachmentFileIds?.length) {
         await tx.taskAttachment.createMany({ data: dto.attachmentFileIds.map((fileId, sortOrder) => ({ taskId, fileId, sortOrder })) });

@@ -21,9 +21,10 @@ stateDiagram-v2
     LOCKED --> ACTIVE: 管理员解锁或锁定到期
     ACTIVE --> DISABLED: 离科或停用
     LOCKED --> DISABLED: 管理员停用
+    DISABLED --> PENDING_ACTIVATION: 护士长重新启用并发放激活码
 ```
 
-`DISABLED` 在 V1.0 不允许自行恢复。确需恢复时由护士长执行重新启用，生成新的激活流程并记录原因。
+`DISABLED` 不允许自行恢复。护士长执行重新启用时必须填写原因，账号进入 `PENDING_ACTIVATION`；旧会话保持失效、旧密码清除、未使用验证码作废，重新激活后进入 `ACTIVE`。最近一次停用时间与原因保留在人员记录和审计日志中。
 
 ## 3. 通知主状态
 

@@ -61,6 +61,9 @@ export class ImportUsersDto {
 
 export class UpdateUserDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(64)
+  employeeNo?: string;
+
+  @IsOptional() @IsString() @MinLength(1) @MaxLength(64)
   name?: string;
 
   @IsOptional() @IsIn(roles)

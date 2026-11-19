@@ -88,6 +88,12 @@ export class UsersController {
     return response(await this.users.replacePermissions(user, userId, dto));
   }
 
+  @Get('users/:userId/permissions')
+  async getPermissions(@CurrentUser() user: AuthUser, @Param('userId', ParseUUIDPipe) userId: string) {
+    this.access.requireHeadNurse(user);
+    return response(await this.users.getPermissions(user, userId));
+  }
+
   @Delete('users/:userId/wechat-association') @HttpCode(204)
   async unbindWechat(
     @CurrentUser() user: AuthUser,

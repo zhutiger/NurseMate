@@ -3,12 +3,12 @@ import { computed, onMounted, ref } from 'vue';
 import { api, download, post } from '../api';
 import { dateTime, label } from '../format';
 
-const items = ref<any[]>([]); const status = ref(''); const loading = ref(false); const error = ref('');
+const items = ref<any[]>([]); const status = ref(''); const level = ref(''); const loading = ref(false); const error = ref('');
 const showCreate = ref(false); const selected = ref<any>(null); const recipients = ref<any>({ items: [], summary: {} });
 const form = ref({ title: '', content: '', level: 'IMPORTANT', requiresConfirmation: true, hours: 24 });
 const pending = computed(() => recipients.value.items.filter((item: any) => !['CONFIRMED', 'EXCLUDED'].includes(item.recipientStatus)));
 
-async function load() { loading.value = true; error.value = ''; try { const query = status.value ? `&status=${status.value}` : ''; const result = await api(`/notices?pageSize=100${query}`); items.value = result.items; } catch (cause: any) { error.value = cause.message; } finally { loading.value = false; } }
+async function load() { loading.value = true; error.value = ''; try { const query = `${status.value ? `&status=${status.value}` : ''}${level.value ? `&level=${level.value}` : ''}`; const result = await api(`/notices?pageSize=100${query}`); items.value = result.items; } catch (cause: any) { error.value = cause.message; } finally { loading.value = false; } }
 async function create() { try { const dto = { title: form.value.title, content: form.value.content, level: form.value.level, requiresConfirmation: form.value.requiresConfirmation, deadlineAt: form.value.requiresConfirmation ? new Date(Date.now() + form.value.hours * 3600000).toISOString() : null, recipientSelection: { mode: 'ALL_ACTIVE' } }; const preview = await post('/notices/recipient-preview', dto.recipientSelection); if (!confirm(`确认向 ${preview.recipientCount} 人发布？`)) return; const draft = await post('/notices', dto); await post(`/notices/${draft.id}/publish`); showCreate.value = false; form.value = { title: '', content: '', level: 'IMPORTANT', requiresConfirmation: true, hours: 24 }; await load(); } catch (cause: any) { alert(cause.message); } }
 async function open(item: any) { try { selected.value = await api(`/notices/${item.id}`); recipients.value = await api(`/notices/${item.id}/recipients?pageSize=100`); } catch (cause: any) { alert(cause.message); } }
 async function remind() { if (!selected.value || !pending.value.length) return; try { await post(`/notices/${selected.value.id}/reminders`, { targetUserIds: pending.value.map((item: any) => item.user.id), channels: ['IN_APP'], note: '管理员后台人工催办' }); alert('催办已记录'); } catch (cause: any) { alert(cause.message); } }
@@ -20,7 +20,7 @@ onMounted(load);
 <template>
   <div class="page-head"><div><h3>通知列表</h3><span class="muted">查看确认进度、催办并导出留痕</span></div><div class="page-actions"><button class="secondary" @click="exportRows">导出明细</button><button class="primary" @click="showCreate = true">＋ 发布通知</button></div></div>
   <section class="panel">
-    <div class="toolbar"><select v-model="status" @change="load"><option value="">全部状态</option><option value="DRAFT">草稿</option><option value="PUBLISHED">已发布</option><option value="CLOSED">已关闭</option><option value="WITHDRAWN">已撤回</option></select><span class="grow"></span><button class="ghost" @click="load">刷新</button></div>
+    <div class="toolbar"><select v-model="status" @change="load"><option value="">全部状态</option><option value="DRAFT">草稿</option><option value="PUBLISHED">已发布</option><option value="CLOSED">已关闭</option><option value="WITHDRAWN">已撤回</option><option value="CANCELLED">已取消</option></select><select v-model="level" @change="load"><option value="">全部级别</option><option value="NORMAL">普通</option><option value="IMPORTANT">重要</option><option value="URGENT">紧急</option></select><span class="grow"></span><button class="ghost" @click="load">刷新</button></div>
     <p v-if="error" class="form-error">{{ error }}</p><div v-if="loading" class="empty">正在加载…</div>
     <div v-else class="table-wrap"><table class="data-table"><thead><tr><th>标题</th><th>级别</th><th>状态</th><th>版本</th><th>发布时间</th><th>操作</th></tr></thead><tbody><tr v-for="item in items" :key="item.id"><td><button class="link" @click="open(item)">{{ item.title }}</button></td><td><span :class="['tag', item.level === 'URGENT' ? 'urgent' : '']">{{ label(item.level) }}</span></td><td>{{ label(item.status) }}</td><td>V{{ item.currentVersion }}</td><td>{{ dateTime(item.publishedAt) }}</td><td><button class="ghost small-button" @click="open(item)">详情</button></td></tr></tbody></table><div v-if="!items.length" class="empty">暂无通知</div></div>
   </section>

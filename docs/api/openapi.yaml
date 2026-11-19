@@ -511,6 +511,16 @@ paths:
                 $ref: '#/components/schemas/ActivationCodeResponse'
 
   /users/{userId}/permissions:
+    get:
+      tags: [Users]
+      summary: 查询协管员当前权限
+      operationId: getUserPermissions
+      x-permission: permission.manage
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: 当前权限代码列表
     put:
       tags: [Users]
       summary: 替换协管员细粒度权限
@@ -579,6 +589,10 @@ paths:
           in: query
           schema:
             $ref: '#/components/schemas/NoticeStatus'
+        - name: level
+          in: query
+          schema:
+            $ref: '#/components/schemas/NoticeLevel'
       responses:
         '200':
           description: 通知分页列表
@@ -1540,6 +1554,11 @@ components:
         primaryGroupId:
           type: [string, 'null']
           format: uuid
+        disabledAt:
+          type: [string, 'null']
+          format: date-time
+        disabledReason:
+          type: [string, 'null']
 
     MeResponse:
       type: object
@@ -1580,6 +1599,10 @@ components:
       type: object
       minProperties: 1
       properties:
+        employeeNo:
+          type: string
+          minLength: 1
+          maxLength: 64
         name:
           type: string
           maxLength: 64

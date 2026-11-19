@@ -232,7 +232,8 @@
                 <label>正文<textarea rows="5">请全体护士及时查看质控问题及相关整改要求，并在期限内完成确认。</textarea></label>
                 <label>重要程度<select><option>普通</option><option selected>重要</option><option>紧急</option></select></label>
                 <label class="hidden" id="completion-mode-field">完成方式<select><option>简单完成</option><option selected>提交反馈并审核</option></select></label>
-                <label>截止时间<input value="2026-11-20 18:00" /></label>
+                <label>截止时间（年月日时分）<input type="datetime-local" value="2026-11-20T18:00" /></label>
+                <label>任务附件（图片、PDF、Word）<input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" multiple /></label>
                 <label>接收范围<select><option selected>全体在岗护士（10人）</option><option>按分组选择</option><option>指定人员</option></select></label>
                 <div class="rule-preview"><strong>规则预览</strong><p>向 10 名在岗护士发送一条重要阅读确认通知，在指定期限前完成确认。</p></div>
                 <div class="button-row"><button class="secondary" type="button">保存草稿</button><button class="primary" type="submit">下一步预览</button></div>
@@ -278,7 +279,8 @@
             <section class="screen" data-screen-panel="people" data-title="人员管理">
               <div class="page-title"><h2>人员管理</h2><button class="small-action">＋ 新增</button></div>
               <div class="search-box">⌕ 搜索姓名或工号</div>
-              <div class="segmented"><button class="active">在岗 10</button><button>待激活 1</button><button>已停用 1</button></div>
+              <div class="segmented"><button class="active">全部账号</button><button>在岗 10</button><button>待激活 1</button><button>已锁定 0</button><button>已停用 1</button></div>
+              <div class="rule-preview"><strong>人员操作</strong><p>编辑工号、姓名、角色与分组；协管员可逐项授权。停用时填写原因，列表显示停用时间与原因；重新启用后发放新激活码。</p></div>
               <div class="person-list">
                 <div><span class="avatar tiny">长</span><p><strong>周护士长</strong><small>PCCM-001</small></p><span>护士长 ›</span></div>
                 <div><span class="avatar tiny">韦</span><p><strong>韦青青</strong><small>PCCM-006 · 教育组</small></p><span>协管员 ›</span></div>

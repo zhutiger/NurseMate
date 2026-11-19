@@ -2,6 +2,7 @@
 import { onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { api, hasSession } from '../../services/api';
+import { label } from '../../services/display';
 
 const loading = ref(true);
 const me = ref<any>(null);
@@ -47,10 +48,10 @@ onShow(load);
     <view v-if="loading" class="empty">正在加载…</view>
     <view v-else-if="!dashboard.notices?.length && !dashboard.tasks?.length" class="card empty">当前没有待办事项</view>
     <view v-for="item in dashboard.notices" :key="`n-${item.id}`" class="card item" @tap="uni.navigateTo({ url: `/pages/notices/detail?id=${item.id}` })">
-      <view class="tag notice">通知</view><view class="item-main"><text class="item-title">{{ item.title }}</text><text class="muted">{{ item.status }}</text></view><text class="arrow">›</text>
+      <view class="tag notice">通知</view><view class="item-main"><text class="item-title">{{ item.title }}</text><text class="muted">{{ label(item.status) }}</text></view><text class="arrow">›</text>
     </view>
     <view v-for="item in dashboard.tasks" :key="`t-${item.id}`" class="card item" @tap="uni.navigateTo({ url: `/pages/tasks/detail?id=${item.id}` })">
-      <view class="tag task">任务</view><view class="item-main"><text class="item-title">{{ item.title }}</text><text class="muted">{{ item.status }}</text></view><text class="arrow">›</text>
+      <view class="tag task">任务</view><view class="item-main"><text class="item-title">{{ item.title }}</text><text class="muted">{{ label(item.status) }}</text></view><text class="arrow">›</text>
     </view>
   </view>
 </template>

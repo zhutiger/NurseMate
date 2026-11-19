@@ -1,20 +1,27 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { activate, login, saveSession } from '../../services/api';
+import { activate, login, resetPassword, saveSession } from '../../services/api';
 import { currentPlatform } from '../../platform';
 
-const mode = ref<'login' | 'activate'>('login');
+const mode = ref<'login' | 'activate' | 'reset'>('login');
 const employeeNo = ref('');
 const password = ref('');
 const activationCode = ref('');
+const resetCode = ref('');
 const submitting = ref(false);
 
 async function submit() {
-  if (!employeeNo.value || !password.value || (mode.value === 'activate' && !activationCode.value)) {
+  if (!employeeNo.value || !password.value || (mode.value === 'activate' && !activationCode.value) || (mode.value === 'reset' && !resetCode.value)) {
     return uni.showToast({ title: '请完整填写信息', icon: 'none' });
   }
   submitting.value = true;
   try {
+    if (mode.value === 'reset') {
+      await resetPassword({ employeeNo: employeeNo.value.trim(), resetCode: resetCode.value.trim(), newPassword: password.value });
+      uni.showToast({ title: '密码已重置，请登录', icon: 'success' });
+      mode.value = 'login'; password.value = ''; resetCode.value = '';
+      return;
+    }
     const clientPlatform = currentPlatform() === 'mp-weixin' ? 'MINI_PROGRAM' : 'H5';
     const result = mode.value === 'login'
       ? await login({ employeeNo: employeeNo.value.trim(), password: password.value, clientPlatform, deviceName: '护知音客户端' })
@@ -31,11 +38,12 @@ async function submit() {
   <view class="login-page">
     <view class="brand-block"><view class="logo">HZY</view><text class="title">护知音</text><text class="subtitle">广东医科大学附属医院 · 科室内部版</text></view>
     <view class="login-card">
-      <view class="switch"><text :class="{ active: mode === 'login' }" @tap="mode='login'">账号登录</text><text :class="{ active: mode === 'activate' }" @tap="mode='activate'">首次激活</text></view>
+      <view class="switch"><text :class="{ active: mode === 'login' }" @tap="mode='login'">账号登录</text><text :class="{ active: mode === 'activate' }" @tap="mode='activate'">首次激活</text><text :class="{ active: mode === 'reset' }" @tap="mode='reset'">重置密码</text></view>
       <text class="label">工号</text><input v-model="employeeNo" class="input" placeholder="请输入工号" />
       <text v-if="mode === 'activate'" class="label">激活码</text><input v-if="mode === 'activate'" v-model="activationCode" class="input" placeholder="请输入一次性激活码" />
-      <text class="label">密码</text><input v-model="password" class="input" password :placeholder="mode === 'activate' ? '至少10位，包含字母和数字' : '请输入密码'" />
-      <button class="primary-btn submit" :loading="submitting" @tap="submit">{{ mode === 'login' ? '登录' : '激活并登录' }}</button>
+      <text v-if="mode === 'reset'" class="label">重置码</text><input v-if="mode === 'reset'" v-model="resetCode" class="input" placeholder="请输入管理员提供的一次性重置码" />
+      <text class="label">{{ mode === 'reset' ? '新密码' : '密码' }}</text><input v-model="password" class="input" password :placeholder="mode === 'login' ? '请输入密码' : '至少10位，包含字母和数字'" />
+      <button class="primary-btn submit" :loading="submitting" @tap="submit">{{ mode === 'login' ? '登录' : mode === 'activate' ? '激活并登录' : '确认重置密码' }}</button>
       <text class="tip">账号由护士长预先创建。激活码或密码问题请联系科室管理员。</text>
     </view>
   </view>
