@@ -121,6 +121,9 @@ importers:
         specifier: 9.14.5
         version: 9.14.5(vue@3.4.21(typescript@5.9.3))
     devDependencies:
+      '@types/node':
+        specifier: 24.10.1
+        version: 24.10.1
       '@dcloudio/types':
         specifier: 3.4.31
         version: 3.4.31
