@@ -3,13 +3,14 @@ import { onShow } from '@dcloudio/uni-app';
 import { computed, ref } from 'vue';
 import { api, hasSession } from '../../services/api';
 import { label } from '../../services/display';
-const uni = (globalThis as any).uni;
 
 const loading = ref(true);
 const loadError = ref('');
 const me = ref<any>(null);
 const dashboard = ref<any>({ counts: {}, notices: [], tasks: [] });
 const greeting = computed(() => new Date().getHours() < 12 ? '上午好' : new Date().getHours() < 18 ? '下午好' : '晚上好');
+const openPage = (url: string) => uni.navigateTo({ url });
+const openTab = (url: string) => uni.switchTab({ url });
 
 async function load() {
   if (!hasSession()) return uni.reLaunch({ url: '/pages/login/login' });
@@ -38,10 +39,10 @@ onShow(load);
     <text class="muted">今天有以下事项需要关注</text>
 
     <view v-if="!loadError" class="metrics">
-      <view class="metric" @tap="uni.switchTab({ url: '/pages/notices/notices' })">
+      <view class="metric" @tap="openTab('/pages/notices/notices')">
         <text class="number">{{ dashboard.counts?.pendingNotices ?? 0 }}</text><text>待确认消息</text>
       </view>
-      <view class="metric" @tap="uni.switchTab({ url: '/pages/tasks/tasks' })">
+      <view class="metric" @tap="openTab('/pages/tasks/tasks')">
         <text class="number">{{ dashboard.counts?.pendingTasks ?? 0 }}</text><text>待完成任务</text>
       </view>
       <view class="metric warn"><text class="number">{{ dashboard.counts?.overdue ?? 0 }}</text><text>已逾期</text></view>
@@ -51,10 +52,10 @@ onShow(load);
     <view v-if="loading" class="empty">正在加载…</view>
     <view v-else-if="loadError" class="card empty">{{ loadError }}<button @tap="load">重新加载</button></view>
     <view v-else-if="!dashboard.notices?.length && !dashboard.tasks?.length" class="card empty">当前没有待办事项</view>
-    <view v-for="item in dashboard.notices" :key="`n-${item.id}`" class="card item" @tap="uni.navigateTo({ url: `/pages/notices/detail?id=${item.id}` })">
+    <view v-for="item in dashboard.notices" :key="`n-${item.id}`" class="card item" @tap="openPage(`/pages/notices/detail?id=${item.id}`)">
       <view class="tag notice">通知</view><view class="item-main"><text class="item-title">{{ item.title }}</text><text class="muted">{{ label(item.status) }}</text></view><text class="arrow">›</text>
     </view>
-    <view v-for="item in dashboard.tasks" :key="`t-${item.id}`" class="card item" @tap="uni.navigateTo({ url: `/pages/tasks/detail?id=${item.id}` })">
+    <view v-for="item in dashboard.tasks" :key="`t-${item.id}`" class="card item" @tap="openPage(`/pages/tasks/detail?id=${item.id}`)">
       <view class="tag task">任务</view><view class="item-main"><text class="item-title">{{ item.title }}</text><text class="muted">{{ label(item.status) }}</text></view><text class="arrow">›</text>
     </view>
   </view>

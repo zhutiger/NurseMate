@@ -1,10 +1,10 @@
 <script setup lang="ts">
-const uni = (globalThis as any).uni;
 import { onShow } from '@dcloudio/uni-app';import { computed,ref } from 'vue';import { api,hasSession,logout } from '../../services/api';
 import { label } from '../../services/display';
 const me=ref<any>(null);const isManager=computed(()=>me.value?.user?.role==='HEAD_NURSE'||me.value?.user?.role==='COORDINATOR');
 onShow(async()=>{if(!hasSession())return uni.reLaunch({url:'/pages/login/login'});try{me.value=await api('/me');}catch{}});
 async function signOut(){await logout();uni.reLaunch({url:'/pages/login/login'});}
+function openManagement(){uni.navigateTo({url:'/pages/admin/dashboard'});}
 </script>
-<template><view class="page"><view class="card person"><view class="avatar">{{me?.user?.name?.slice(0,1)||'护'}}</view><view><text class="name">{{me?.user?.name}}</text><text class="muted">工号 {{me?.user?.employeeNo}} · {{ label(me?.user?.role) }}</text></view></view><view v-if="isManager" class="card menu" @tap="uni.navigateTo({url:'/pages/admin/dashboard'})"><text>管理看板</text><text>›</text></view><view class="card menu"><text>微信身份</text><text class="muted">{{me?.wechatAssociated?'已关联':'未关联'}}</text></view><view class="card"><text class="section-title">使用说明</text><text class="muted desc">通知确认只代表已阅读知晓，任务需要按要求提交并在必要时通过审核。紧急患者安全事项仍以电话、交接班和院内规定方式为准。</text></view><button class="secondary-btn" @tap="signOut">退出登录</button></view></template>
+<template><view class="page"><view class="card person"><view class="avatar">{{me?.user?.name?.slice(0,1)||'护'}}</view><view><text class="name">{{me?.user?.name}}</text><text class="muted">工号 {{me?.user?.employeeNo}} · {{ label(me?.user?.role) }}</text></view></view><view v-if="isManager" class="card menu" @tap="openManagement"><text>管理看板</text><text>›</text></view><view class="card menu"><text>微信身份</text><text class="muted">{{me?.wechatAssociated?'已关联':'未关联'}}</text></view><view class="card"><text class="section-title">使用说明</text><text class="muted desc">通知确认只代表已阅读知晓，任务需要按要求提交并在必要时通过审核。紧急患者安全事项仍以电话、交接班和院内规定方式为准。</text></view><button class="secondary-btn" @tap="signOut">退出登录</button></view></template>
 <style scoped>.person{display:flex;align-items:center}.avatar{display:flex;align-items:center;justify-content:center;width:100rpx;height:100rpx;margin-right:24rpx;color:#fff;font-size:38rpx;font-weight:700;border-radius:50%;background:#008da1}.name,.muted{display:block}.name{margin-bottom:8rpx;font-size:34rpx;font-weight:800}.menu{display:flex;justify-content:space-between}.desc{line-height:1.8}</style>
