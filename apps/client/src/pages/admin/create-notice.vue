@@ -92,7 +92,7 @@ async function publish() {
     </view>
 
     <view class="publish-card">
-      <view class="section-heading"><text class="section-number">01</text><view><text class="section-name">通知内容</text><text class="section-caption">标题简洁明确，正文说明具体要求</text></view></view>
+      <view class="section-heading"><text class="section-number">01</text><view class="section-text"><text class="section-name">通知内容</text><text class="section-caption">标题简洁明确，正文说明具体要求</text></view></view>
       <view class="form-field">
         <text class="field-label">通知标题 <text class="required">*</text></text>
         <input class="field-control" type="text" :value="title" maxlength="200" placeholder="例如：本周护理质量重点" @input="onTitleInput" />
@@ -104,7 +104,7 @@ async function publish() {
     </view>
 
     <view class="publish-card">
-      <view class="section-heading"><text class="section-number">02</text><view><text class="section-name">确认规则</text><text class="section-caption">设置重要程度和确认时限</text></view></view>
+      <view class="section-heading"><text class="section-number">02</text><view class="section-text"><text class="section-name">确认规则</text><text class="section-caption">设置重要程度和确认时限</text></view></view>
       <view class="form-field">
         <text class="field-label">重要程度 <text class="required">*</text></text>
         <picker class="select-field" :range="levelLabels" :value="selectedLevel" @change="onLevelChange">

@@ -73,7 +73,7 @@ async function publish() {
     </view>
 
     <view class="publish-card">
-      <view class="section-heading"><text class="section-number">01</text><view><text class="section-name">任务内容</text><text class="section-caption">让接收人清楚了解执行要求</text></view></view>
+      <view class="section-heading"><text class="section-number">01</text><view class="section-text"><text class="section-name">任务内容</text><text class="section-caption">让接收人清楚了解执行要求</text></view></view>
       <view class="form-field">
         <text class="field-label">任务标题 <text class="required">*</text></text>
         <input class="field-control" type="text" :value="title" maxlength="200" placeholder="例如：本周护理质控整改" @input="onTitleInput" />
@@ -85,7 +85,7 @@ async function publish() {
     </view>
 
     <view class="publish-card">
-      <view class="section-heading"><text class="section-number">02</text><view><text class="section-name">完成规则</text><text class="section-caption">设置完成方式和截止时间</text></view></view>
+      <view class="section-heading"><text class="section-number">02</text><view class="section-text"><text class="section-name">完成规则</text><text class="section-caption">设置完成方式和截止时间</text></view></view>
       <view class="form-field">
         <text class="field-label">完成方式 <text class="required">*</text></text>
         <picker class="select-field" :range="modeLabels" :value="selectedMode" @change="onModeChange">

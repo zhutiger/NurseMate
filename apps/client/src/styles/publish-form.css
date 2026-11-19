@@ -30,7 +30,7 @@
 }
 
 .publish-page .section-heading { display: flex; align-items: center; gap: 18rpx; padding-bottom: 24rpx; border-bottom: 1px solid #ebf2f2; }
-.publish-page .section-heading > view { display: flex; flex-direction: column; gap: 3rpx; }
+.publish-page .section-text { display: flex; flex-direction: column; gap: 3rpx; }
 .publish-page .section-number { display: flex; align-items: center; justify-content: center; width: 52rpx; height: 52rpx; flex: none; border-radius: 16rpx; color: #007f95; background: #e8f7f6; font-size: 23rpx; font-weight: 800; }
 .publish-page .section-name { color: #153f48; font-size: 30rpx; font-weight: 750; }
 .publish-page .section-caption { color: #7a9297; font-size: 22rpx; }
