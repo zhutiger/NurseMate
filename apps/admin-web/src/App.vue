@@ -89,12 +89,12 @@ onBeforeUnmount(() => window.removeEventListener('hzy-session-expired', expired)
     <div class="login-brand">
       <div class="brand-mark">护</div>
       <div>
-        <h1>护知音</h1>
+        <h1>呼吸通</h1>
         <p>护理消息与任务闭环管理平台</p>
       </div>
     </div>
     <form class="login-card" @submit.prevent="resetMode ? submitReset() : signIn()">
-      <span class="eyebrow">HZY ADMIN</span>
+      <span class="eyebrow">HXT ADMIN</span>
       <h2>{{ resetMode ? '重置管理账号密码' : '管理端登录' }}</h2>
       <p class="muted">{{ resetMode ? '请输入管理员提供的一次性重置码' : '护士长与授权协管员使用统一账号登录' }}</p>
       <label>工号</label>
@@ -112,7 +112,7 @@ onBeforeUnmount(() => window.removeEventListener('hzy-session-expired', expired)
 
   <div v-else class="admin-shell">
     <aside class="sidebar">
-      <div class="side-brand"><span class="brand-mark small">护</span><div><b>护知音</b><small>HZY ADMIN</small></div></div>
+      <div class="side-brand"><span class="brand-mark small">呼</span><div><b>呼吸通</b><small>HXT ADMIN</small></div></div>
       <nav>
         <button v-for="item in sections" :key="item.key" :class="{ active: section === item.key }" @click="section = item.key">
           <span>{{ item.icon }}</span>{{ item.label }}

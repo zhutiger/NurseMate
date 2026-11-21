@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: 护知音 HZY API
+  title: 呼吸通 HXT API
   version: 0.1.0
   description: |
     V1.0 初始接口契约。账号密码用于小程序与 H5；微信身份关联只提供微信平台能力。

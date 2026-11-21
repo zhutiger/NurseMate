@@ -80,7 +80,7 @@ export async function api(path: string, options: RequestInit = {}): Promise<any>
 export async function login(employeeNo: string, password: string) {
   const session = await raw('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ employeeNo, password, clientPlatform: 'ADMIN_WEB', deviceName: '护知音电脑管理端' }),
+    body: JSON.stringify({ employeeNo, password, clientPlatform: 'ADMIN_WEB', deviceName: '呼吸通电脑管理端' }),
   });
   saveSession(session);
   return session;

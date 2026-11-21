@@ -1,4 +1,4 @@
-# 护知音 HZY
+# 呼吸通 HXT
 
 本科室护理重要消息与任务闭环管理平台。
 
@@ -36,7 +36,7 @@
 ├─ scripts            # 工程与运维脚本
 ├─ PROJECT.md         # 项目执行入口与交付清单
 ├─ AGENTS.md          # 后续开发协作约束
-└─ HZY-V1.0-系统建设方案.md
+└─ HXT-V1.0-系统建设方案.md
 ```
 
 ## 当前状态
@@ -45,7 +45,7 @@
 
 ## 项目文档
 
-- [HZY V1.0 系统建设方案](./HZY-V1.0-系统建设方案.md)
+- [HXT V1.0 系统建设方案](./HXT-V1.0-系统建设方案.md)
 - [项目执行清单](./PROJECT.md)
 - [V1.0 产品基线](./docs/product/README.md)
 - [关键页面可点击原型](./docs/prototype/index.html)

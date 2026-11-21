@@ -2,7 +2,7 @@
   "name": "hzy-nursemate",
   "version": "0.1.0",
   "private": true,
-  "description": "护知音护理重要消息与任务闭环管理平台",
+  "description": "呼吸通护理重要消息与任务闭环管理平台",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=20"

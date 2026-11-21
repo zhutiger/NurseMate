@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onLaunch } from '@dcloudio/uni-app';
 
-onLaunch(() => console.info('护知音已启动'));
+onLaunch(() => console.info('呼吸通已启动'));
 </script>
 
 <style>

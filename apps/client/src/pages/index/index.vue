@@ -29,9 +29,9 @@ onShow(load);
 <template>
   <view class="page home">
     <view class="hero">
-      <view class="logo">HZY</view>
+      <view class="logo">HXT</view>
       <view class="hero-copy">
-        <text class="brand">护知音</text>
+        <text class="brand">呼吸通</text>
         <text class="slogan">每条重要消息，都有回应。</text>
       </view>
     </view>

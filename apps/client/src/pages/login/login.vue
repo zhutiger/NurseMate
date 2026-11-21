@@ -24,8 +24,8 @@ async function submit() {
     }
     const clientPlatform = currentPlatform() === 'mp-weixin' ? 'MINI_PROGRAM' : 'H5';
     const result = mode.value === 'login'
-      ? await login({ employeeNo: employeeNo.value.trim(), password: password.value, clientPlatform, deviceName: '护知音客户端' })
-      : await activate({ employeeNo: employeeNo.value.trim(), activationCode: activationCode.value.trim(), password: password.value, clientPlatform, deviceName: '护知音客户端' });
+      ? await login({ employeeNo: employeeNo.value.trim(), password: password.value, clientPlatform, deviceName: '呼吸通客户端' })
+      : await activate({ employeeNo: employeeNo.value.trim(), activationCode: activationCode.value.trim(), password: password.value, clientPlatform, deviceName: '呼吸通客户端' });
     saveSession(result);
     uni.reLaunch({ url: '/pages/index/index' });
   } catch (error: any) {
@@ -36,7 +36,7 @@ async function submit() {
 
 <template>
   <view class="login-page">
-    <view class="brand-block"><view class="logo">HZY</view><text class="title">护知音</text><text class="subtitle">广东医科大学附属医院 · 科室内部版</text></view>
+    <view class="brand-block"><view class="logo">HXT</view><text class="title">呼吸通</text><text class="subtitle">广东医科大学附属医院 · 科室内部版</text></view>
     <view class="login-card">
       <view class="switch"><text :class="{ active: mode === 'login' }" @tap="mode='login'">账号登录</text><text :class="{ active: mode === 'activate' }" @tap="mode='activate'">首次激活</text><text :class="{ active: mode === 'reset' }" @tap="mode='reset'">重置密码</text></view>
       <text class="label">工号</text><input v-model="employeeNo" class="input" placeholder="请输入工号" />

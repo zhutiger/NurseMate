@@ -211,7 +211,7 @@ export class ReminderSchedulerService implements OnModuleInit, OnModuleDestroy {
       },
     });
     if (!reminder || !['PLANNED', 'FAILED_RETRYABLE'].includes(reminder.status)) return;
-    const title = reminder.noticeRecipient?.notice.title ?? reminder.taskRecord?.task.title ?? '护知音工作提醒';
+    const title = reminder.noticeRecipient?.notice.title ?? reminder.taskRecord?.task.title ?? '呼吸通工作提醒';
     const deadline = reminder.noticeRecipient?.notice.deadline ?? reminder.taskRecord?.task.deadline ?? null;
     const page = reminder.noticeRecipient ? `/pages/notices/detail?id=${reminder.noticeRecipient.noticeId}` : `/pages/tasks/detail?id=${reminder.taskRecord?.taskId}`;
     await this.sendWechat(reminder.id, title, deadline, page, 'PRE_DEADLINE');
@@ -257,7 +257,7 @@ export class ReminderSchedulerService implements OnModuleInit, OnModuleDestroy {
           data: {
             thing1: { value: title.slice(0, 20) },
             time2: { value: deadline ? deadline.toISOString().slice(0, 16).replace('T', ' ') : '请尽快处理' },
-            thing3: { value: event === 'OVERDUE' ? '事项已逾期，请及时处理' : '请登录护知音查看详情' },
+            thing3: { value: event === 'OVERDUE' ? '事项已逾期，请及时处理' : '请登录呼吸通查看详情' },
           },
         }),
       });

@@ -1,6 +1,6 @@
 {
   "pages": [
-    { "path": "pages/index/index", "style": { "navigationBarTitleText": "护知音" } },
+    { "path": "pages/index/index", "style": { "navigationBarTitleText": "呼吸通" } },
     { "path": "pages/notices/notices", "style": { "navigationBarTitleText": "消息" } },
     { "path": "pages/tasks/tasks", "style": { "navigationBarTitleText": "任务" } },
     { "path": "pages/profile/profile", "style": { "navigationBarTitleText": "我的" } },
@@ -29,7 +29,7 @@
   },
   "globalStyle": {
     "navigationBarTextStyle": "white",
-    "navigationBarTitleText": "护知音",
+    "navigationBarTitleText": "呼吸通",
     "navigationBarBackgroundColor": "#007f95",
     "backgroundColor": "#f3f7f7"
   }
