@@ -40,7 +40,6 @@ with tempfile.TemporaryDirectory(prefix='nursemate-task-lifecycle-', ignore_clea
         errors = []
 
         def command(method, params=None):
-            nonlocal_next = None
             global next_id
             next_id += 1
             command_id = next_id
@@ -72,7 +71,7 @@ with tempfile.TemporaryDirectory(prefix='nursemate-task-lifecycle-', ignore_clea
 
         command('Runtime.enable')
         command('Page.enable')
-        wait_for("document.body?.innerText.includes('管理端登录')", '登录页')
+        wait_for("document.querySelector('.login-card') !== null", '登录页')
         fill = """(() => {
           const inputs=document.querySelectorAll('.login-card input');
           for(const [input,value] of [[inputs[0],EMPLOYEE],[inputs[1],PASSWORD]]){
