@@ -254,7 +254,7 @@ export class TasksService {
         },
       });
       if (active && contentChanged) {
-        await tx.taskVersion.create({
+        const version = await tx.taskVersion.create({
           data: {
             taskId,
             versionNo: updated.currentVersion,
@@ -263,6 +263,11 @@ export class TasksService {
             createdById: user.id,
           },
         });
+        if (nextAttachmentIds.length) {
+          await tx.taskVersionAttachment.createMany({
+            data: nextAttachmentIds.map((fileId, sortOrder) => ({ taskVersionId: version.id, fileId, sortOrder })),
+          });
+        }
       }
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: active ? 'task.active_update' : 'task.draft_update', targetType: 'task', targetId: taskId, result: 'SUCCESS', beforeData: { deadlineAt: task.deadline.toISOString(), version: task.currentVersion }, afterData: { deadlineAt: updated.deadline.toISOString(), version: updated.currentVersion, contentChanged } },
@@ -299,9 +304,14 @@ export class TasksService {
       });
       if (changed.count !== 1) throw new ConflictException('TASK_STATE_CONFLICT');
       await tx.taskRecord.createMany({ data: assignees.map(({ id }) => ({ taskId, assigneeId: id })) });
-      await tx.taskVersion.create({
+      const version = await tx.taskVersion.create({
         data: { taskId, versionNo: 1, snapshot: this.versionSnapshot(task, task.attachments.map((item) => item.fileId)), changeReason: '任务首次发布', createdById: user.id },
       });
+      if (task.attachments.length) {
+        await tx.taskVersionAttachment.createMany({
+          data: task.attachments.map((item) => ({ taskVersionId: version.id, fileId: item.fileId, sortOrder: item.sortOrder })),
+        });
+      }
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: 'task.publish', targetType: 'task', targetId: taskId, result: 'SUCCESS', afterData: { assigneeCount: assignees.length } },
       });
@@ -374,9 +384,14 @@ export class TasksService {
         await tx.taskAttachment.createMany({ data: source.attachments.map((item) => ({ taskId: task.id, fileId: item.fileId, sortOrder: item.sortOrder })) });
       }
       await tx.taskRecord.createMany({ data: assigneeIds.map((assigneeId) => ({ taskId: task.id, assigneeId })) });
-      await tx.taskVersion.create({
+      const version = await tx.taskVersion.create({
         data: { taskId: task.id, versionNo: 1, snapshot: this.versionSnapshot(task, source.attachments.map((item) => item.fileId)), changeReason: `由任务 ${source.id} 再次发起`, createdById: user.id },
       });
+      if (source.attachments.length) {
+        await tx.taskVersionAttachment.createMany({
+          data: source.attachments.map((item) => ({ taskVersionId: version.id, fileId: item.fileId, sortOrder: item.sortOrder })),
+        });
+      }
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: 'task.relaunch', targetType: 'task', targetId: task.id, result: 'SUCCESS', afterData: { sourceTaskId: source.id, assigneeCount: assigneeIds.length, deadlineAt: deadline.toISOString() } },
       });

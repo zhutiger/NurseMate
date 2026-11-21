@@ -424,39 +424,40 @@ model Task {
   createdAt          DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime           @updatedAt @db.Timestamptz(3)
 
-  department  Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  createdBy   User             @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  publishedBy User?            @relation("TaskPublisher", fields: [publishedById], references: [id], onDelete: Restrict)
-    deletedBy   User?            @relation("TaskDeleter", fields: [deletedById], references: [id], onDelete: Restrict)
-    sourceTask  Task?            @relation("TaskRelaunch", fields: [sourceTaskId], references: [id], onDelete: Restrict)
-    relaunchedTasks Task[]       @relation("TaskRelaunch")
-    versions    TaskVersion[]
-  records     TaskRecord[]
-  attachments TaskAttachment[]
+  department      Department       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  createdBy       User             @relation("TaskCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  publishedBy     User?            @relation("TaskPublisher", fields: [publishedById], references: [id], onDelete: Restrict)
+  deletedBy       User?            @relation("TaskDeleter", fields: [deletedById], references: [id], onDelete: Restrict)
+  sourceTask      Task?            @relation("TaskRelaunch", fields: [sourceTaskId], references: [id], onDelete: Restrict)
+  relaunchedTasks Task[]           @relation("TaskRelaunch")
+  versions        TaskVersion[]
+  records         TaskRecord[]
+  attachments     TaskAttachment[]
 
   @@index([departmentId, status, publishedAt])
   @@index([departmentId, deadline])
-    @@index([departmentId, deletedAt])
-    @@index([sourceTaskId])
+  @@index([departmentId, deletedAt])
+  @@index([sourceTaskId])
   @@map("tasks")
 }
 
 model TaskVersion {
-    id          String   @id @default(uuid()) @db.Uuid
-    taskId      String   @db.Uuid
-    versionNo   Int
-    snapshot    Json
-    changeReason String? @db.VarChar(255)
-    createdById String   @db.Uuid
-    createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  id           String   @id @default(uuid()) @db.Uuid
+  taskId       String   @db.Uuid
+  versionNo    Int
+  snapshot     Json
+  changeReason String?  @db.VarChar(255)
+  createdById  String   @db.Uuid
+  createdAt    DateTime @default(now()) @db.Timestamptz(3)
 
-    task      Task @relation(fields: [taskId], references: [id], onDelete: Restrict)
-    createdBy User @relation("TaskVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  task        Task                    @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  createdBy   User                    @relation("TaskVersionCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  attachments TaskVersionAttachment[]
 
-    @@unique([taskId, versionNo])
-    @@index([taskId, createdAt])
-    @@map("task_versions")
-  }
+  @@unique([taskId, versionNo])
+  @@index([taskId, createdAt])
+  @@map("task_versions")
+}
 
 model TaskRecord {
   id              String           @id @default(uuid()) @db.Uuid
@@ -476,7 +477,7 @@ model TaskRecord {
   excludedBy  User?            @relation("TaskRecordExcluder", fields: [excludedById], references: [id], onDelete: Restrict)
   submissions TaskSubmission[]
   reminders   Reminder[]
-    views       TaskView[]
+  views       TaskView[]
 
   @@unique([taskId, assigneeId])
   @@index([assigneeId, status])
@@ -484,17 +485,17 @@ model TaskRecord {
 }
 
 model TaskView {
-    id           String   @id @default(uuid()) @db.Uuid
-    taskRecordId String   @db.Uuid
-    versionNo    Int
-    viewedAt     DateTime @default(now()) @db.Timestamptz(3)
+  id           String   @id @default(uuid()) @db.Uuid
+  taskRecordId String   @db.Uuid
+  versionNo    Int
+  viewedAt     DateTime @default(now()) @db.Timestamptz(3)
 
-    taskRecord TaskRecord @relation(fields: [taskRecordId], references: [id], onDelete: Restrict)
+  taskRecord TaskRecord @relation(fields: [taskRecordId], references: [id], onDelete: Restrict)
 
-    @@unique([taskRecordId, versionNo])
-    @@index([taskRecordId, viewedAt])
-    @@map("task_views")
-  }
+  @@unique([taskRecordId, versionNo])
+  @@index([taskRecordId, viewedAt])
+  @@map("task_views")
+}
 
 model TaskSubmission {
   id            String                 @id @default(uuid()) @db.Uuid
@@ -532,6 +533,7 @@ model FileObject {
   uploadedBy            User                       @relation("FileUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
   noticeAttachments     NoticeVersionAttachment[]
   taskAttachments       TaskAttachment[]
+  taskVersionAttachments TaskVersionAttachment[]
   submissionAttachments TaskSubmissionAttachment[]
   exportJobs            ExportJob[]
 
@@ -561,6 +563,18 @@ model TaskAttachment {
 
   @@id([taskId, fileId])
   @@map("task_attachments")
+}
+
+model TaskVersionAttachment {
+  taskVersionId String @db.Uuid
+  fileId        String @db.Uuid
+  sortOrder     Int    @default(0)
+
+  taskVersion TaskVersion @relation(fields: [taskVersionId], references: [id], onDelete: Restrict)
+  file        FileObject  @relation(fields: [fileId], references: [id], onDelete: Restrict)
+
+  @@id([taskVersionId, fileId])
+  @@map("task_version_attachments")
 }
 
 model TaskSubmissionAttachment {

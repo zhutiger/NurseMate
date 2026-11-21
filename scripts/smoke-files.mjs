@@ -68,12 +68,14 @@ const noticeDownload = await fetch(`${baseUrl}/files/${noticeFile.id}/download`,
 if (!noticeDownload.ok || !(await noticeDownload.text()).includes('NurseMate notice attachment')) throw new Error('Nurse cannot download received notice attachment');
 
 const submissionFile = await upload(nurseHeaders, `submission-${Date.now()}.pdf`, 'TASK_SUBMISSION', Buffer.from('%PDF-1.4\nNurseMate task evidence\n%%EOF'));
+const taskFile = await upload(headHeaders, `task-${Date.now()}.pdf`, 'TASK_ATTACHMENT', Buffer.from('%PDF-1.4\nNurseMate versioned task attachment\n%%EOF'));
 const task = (await request('/tasks', {
   method: 'POST', headers: headHeaders,
   body: JSON.stringify({
     title: `附件任务 ${Date.now()}`, content: '验证反馈附件和授权。', level: 'IMPORTANT', completionMode: 'REVIEW',
     feedbackRequired: true, attachmentRequired: true, deadlineAt,
     assigneeSelection: { mode: 'USERS', userIds: [nurse.user.id] },
+    attachmentFileIds: [taskFile.id],
   }),
 })).data;
 await request(`/tasks/${task.id}/publish`, { method: 'POST', headers: headHeaders });
@@ -88,6 +90,20 @@ await request(`/tasks/${task.id}/records/${myTask.recordId}/review`, {
 });
 const taskDetail = (await request(`/me/tasks/${task.id}`, { headers: nurseHeaders })).data;
 if (taskDetail.submissions[0]?.attachments[0]?.id !== submissionFile.id) throw new Error('Submission attachment history missing');
+if (taskDetail.attachments[0]?.id !== taskFile.id) throw new Error('Current task attachment reference missing');
+await request(`/tasks/${task.id}`, {
+  method: 'PATCH', headers: headHeaders,
+  body: JSON.stringify({
+    title: taskDetail.title, content: '验证反馈附件、版本附件和授权。', level: taskDetail.level,
+    completionMode: taskDetail.completionMode, feedbackRequired: taskDetail.feedbackRequired,
+    attachmentRequired: taskDetail.attachmentRequired, deadlineAt: taskDetail.deadlineAt,
+    assigneeSelection: { mode: 'USERS', userIds: [nurse.user.id] }, attachmentFileIds: [],
+  }),
+});
+const historicalTaskDownload = await fetch(`${baseUrl}/files/${taskFile.id}/download`, { headers: nurseHeaders });
+if (!historicalTaskDownload.ok || !(await historicalTaskDownload.text()).includes('NurseMate versioned task attachment')) {
+  throw new Error('Nurse cannot download historical task-version attachment');
+}
 const evidenceDownload = await fetch(`${baseUrl}/files/${submissionFile.id}/download`, { headers: headHeaders });
 if (!evidenceDownload.ok || !(await evidenceDownload.text()).includes('NurseMate task evidence')) throw new Error('Reviewer cannot download task evidence');
 
@@ -97,5 +113,6 @@ console.log(JSON.stringify({
   digestAndSizeVerified: true,
   noticeAttachmentAuthorized: true,
   submissionAttachmentAuthorized: true,
+  historicalTaskAttachmentAuthorized: true,
   attachmentHistoryPreserved: true,
 }));

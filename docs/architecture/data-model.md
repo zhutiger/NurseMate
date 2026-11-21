@@ -22,7 +22,7 @@
 | 通知 | `notices`、`notice_versions`、`notice_recipients` | 通知主记录、版本和接收快照 |
 | 通知留痕 | `notice_views`、`notice_confirmations` | 每个通知版本的查看与确认记录 |
 | 任务 | `tasks`、`task_versions`、`task_records`、`task_views`、`task_submissions` | 任务、内容版本、负责人查看、执行状态和多次提交审核 |
-| 文件 | `file_objects` 及三张附件关联表 | 文件元数据及通知、任务、反馈附件 |
+| 文件 | `file_objects` 及通知版本、任务当前版本、任务历史版本、反馈附件关联表 | 文件元数据及各业务版本附件 |
 | 提醒 | `reminders` | 站内、微信订阅消息和人工催办记录 |
 | 导出 | `export_jobs` | 异步导出状态、筛选快照、结果文件和有效期 |
 | 审计与可靠性 | `audit_logs`、`idempotency_records` | 不可变审计与重复请求防护 |
@@ -44,6 +44,7 @@ erDiagram
     NOTICE_VERSION ||--o{ NOTICE_CONFIRMATION : records
     TASK ||--o{ TASK_RECORD : assigns
     TASK ||--o{ TASK_VERSION : versions
+    TASK_VERSION ||--o{ TASK_VERSION_ATTACHMENT : attaches
     TASK_RECORD ||--o{ TASK_VIEW : views
     TASK_RECORD ||--o{ TASK_SUBMISSION : submits
     NOTICE_RECIPIENT ||--o{ REMINDER : triggers

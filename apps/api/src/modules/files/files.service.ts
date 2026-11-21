@@ -137,12 +137,13 @@ export class FilesService {
         || await this.access.has(user, 'report.export');
     }
     if (!allowed) {
-      const [notice, task, submission] = await Promise.all([
+      const [notice, currentTask, versionedTask, submission] = await Promise.all([
         this.prisma.noticeVersionAttachment.findFirst({ where: { fileId, noticeVersion: { notice: { recipients: { some: { userId: user.id, excludedAt: null } } } } } }),
         this.prisma.taskAttachment.findFirst({ where: { fileId, task: { records: { some: { assigneeId: user.id, excludedAt: null } } } } }),
+        this.prisma.taskVersionAttachment.findFirst({ where: { fileId, taskVersion: { task: { records: { some: { assigneeId: user.id, excludedAt: null } } } } } }),
         this.prisma.taskSubmissionAttachment.findFirst({ where: { fileId, submission: { taskRecord: { assigneeId: user.id, excludedAt: null } } } }),
       ]);
-      allowed = Boolean(notice || task || submission);
+      allowed = Boolean(notice || currentTask || versionedTask || submission);
     }
     if (!allowed) throw new ForbiddenException('PERMISSION_DENIED');
     return { file, content: await readFile(join(this.storageRoot(), file.storageKey)) };
