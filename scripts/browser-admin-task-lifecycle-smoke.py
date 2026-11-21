@@ -71,14 +71,15 @@ with tempfile.TemporaryDirectory(prefix='nursemate-task-lifecycle-', ignore_clea
 
         command('Runtime.enable')
         command('Page.enable')
-        wait_for("document.querySelector('.login-card') !== null", '登录页')
+        wait_for("document.body && document.body.innerText.length > 20", '登录页')
         fill = """(() => {
-          const inputs=document.querySelectorAll('.login-card input');
+          const inputs=document.querySelectorAll('input');
+          if(inputs.length < 2) return false;
           for(const [input,value] of [[inputs[0],EMPLOYEE],[inputs[1],PASSWORD]]){
             Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,value);
             input.dispatchEvent(new Event('input',{bubbles:true}));
           }
-          document.querySelector('.login-card button').click(); return true;
+          document.querySelector('button').click(); return true;
         })()""".replace('EMPLOYEE', json.dumps(employee_no)).replace('PASSWORD', json.dumps(password))
         evaluate(fill)
         wait_for("!!sessionStorage.getItem('hzy_admin_access_token')", '管理端登录')
