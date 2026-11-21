@@ -115,6 +115,15 @@ export class TaskListQueryDto {
   @IsOptional()
   @IsIn(['DRAFT', 'PUBLISHED', 'CLOSED', 'WITHDRAWN', 'CANCELLED'])
   status?: 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'WITHDRAWN' | 'CANCELLED';
+
+  @IsOptional()
+  @IsIn(['ONGOING', 'ENDED'])
+  lifecycle?: 'ONGOING' | 'ENDED';
+}
+
+export class RelaunchTaskDto {
+  @IsDateString()
+  deadlineAt!: string;
 }
 
 export class MyTaskListQueryDto {
@@ -130,7 +139,7 @@ export class MyTaskListQueryDto {
   pageSize = 20;
 
   @IsOptional()
-  @IsIn(['PENDING', 'SUBMITTED', 'RETURNED', 'APPROVED', 'COMPLETED', 'OVERDUE_PENDING', 'OVERDUE_RETURNED'])
+  @IsIn(['PENDING', 'SUBMITTED', 'RETURNED', 'APPROVED', 'COMPLETED'])
   status?: string;
 }
 

@@ -113,7 +113,7 @@ export class RemindersService {
 
   async remindTask(user: AuthUser, taskId: string, dto: ReminderRequestDto) {
     const task = await this.prisma.task.findFirst({
-      where: { id: taskId, departmentId: user.departmentId, status: 'PUBLISHED' },
+      where: { id: taskId, departmentId: user.departmentId, status: 'PUBLISHED', deletedAt: null, deadline: { gt: new Date() } },
       include: { records: { where: { excludedAt: null, status: { in: ['PENDING', 'RETURNED'] } } } },
     });
     if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
@@ -143,7 +143,7 @@ export class RemindersService {
         include: { notice: { include: { versions: { orderBy: { versionNo: 'desc' } } } }, views: true, confirmations: true },
       }),
       this.prisma.taskRecord.findMany({
-        where: { assigneeId: user.id, excludedAt: null, task: { status: 'PUBLISHED' }, status: { in: ['PENDING', 'RETURNED'] } },
+        where: { assigneeId: user.id, excludedAt: null, task: { status: 'PUBLISHED', deletedAt: null, deadline: { gt: new Date() } }, status: { in: ['PENDING', 'RETURNED'] } },
         include: { task: true },
       }),
     ]);
@@ -162,13 +162,13 @@ export class RemindersService {
     });
     const tasks = taskRecords.map((record) => ({
       id: record.task.id, title: record.task.title, level: record.task.level, deadlineAt: record.task.deadline,
-      status: record.task.deadline < new Date() ? (record.status === 'RETURNED' ? 'OVERDUE_RETURNED' : 'OVERDUE_PENDING') : record.status,
+      status: record.status,
     }));
     return {
       counts: {
         pendingNotices: notices.length,
         pendingTasks: tasks.length,
-        overdue: notices.filter((item) => item.status.startsWith('OVERDUE')).length + tasks.filter((item) => item.status.startsWith('OVERDUE')).length,
+        overdue: notices.filter((item) => item.status.startsWith('OVERDUE')).length,
       },
       notices: notices.slice(0, 10),
       tasks: tasks.slice(0, 10),

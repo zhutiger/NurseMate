@@ -8,6 +8,7 @@ import {
   CreateTaskDto,
   MyTaskListQueryDto,
   OptionalReasonDto,
+  RelaunchTaskDto,
   RequiredReasonDto,
   ReviewTaskDto,
   SubmitTaskDto,
@@ -39,9 +40,32 @@ export class TasksService {
   }
 
   private derivedStatus(status: string, deadline: Date) {
-    if (deadline.getTime() < Date.now() && status === 'PENDING') return 'OVERDUE_PENDING';
-    if (deadline.getTime() < Date.now() && status === 'RETURNED') return 'OVERDUE_RETURNED';
     return status;
+  }
+
+  private isEnded(task: { status: string; deadline: Date }) {
+    if (task.status === 'PUBLISHED') return task.deadline.getTime() <= Date.now();
+    return ['CLOSED', 'WITHDRAWN', 'CANCELLED'].includes(task.status);
+  }
+
+  private lifecycle(task: { status: string; deadline: Date }) {
+    return this.isEnded(task) ? 'ENDED' as const : 'ONGOING' as const;
+  }
+
+  private versionSnapshot(task: {
+    title: string; content: string; level: string; deadline: Date; completionMode: string;
+    feedbackRequired: boolean; attachmentRequired: boolean;
+  }, attachmentFileIds: string[]) {
+    return this.json({
+      title: task.title,
+      content: task.content,
+      level: task.level,
+      deadlineAt: task.deadline.toISOString(),
+      completionMode: task.completionMode,
+      feedbackRequired: task.feedbackRequired,
+      attachmentRequired: task.attachmentRequired,
+      attachmentFileIds,
+    });
   }
 
   private async resolveAssignees(tx: Tx, departmentId: string, selection: AssigneeSelectionDto) {
@@ -115,12 +139,20 @@ export class TasksService {
   }
 
   async listManaged(user: AuthUser, query: TaskListQueryDto, canReadAll: boolean) {
+    const now = new Date();
     const where: Prisma.TaskWhereInput = {
       departmentId: user.departmentId,
-      ...(query.status ? { status: query.status } : {}),
+      deletedAt: null,
+      ...(query.status
+        ? { status: query.status }
+        : query.lifecycle === 'ONGOING'
+          ? { status: 'PUBLISHED', deadline: { gt: now } }
+          : query.lifecycle === 'ENDED'
+            ? { OR: [{ status: 'CLOSED' }, { status: 'PUBLISHED', deadline: { lte: now } }] }
+            : { OR: [{ status: 'PUBLISHED' }, { status: 'CLOSED' }] }),
       ...(!canReadAll ? { createdById: user.id } : {}),
     };
-    const { items, total, progress } = await this.prisma.$transaction(async (tx) => {
+    const { items, total, progress, views } = await this.prisma.$transaction(async (tx) => {
       const [items, total] = await Promise.all([
         tx.task.findMany({
           where,
@@ -136,7 +168,11 @@ export class TasksService {
         where: { taskId: { in: items.map((item) => item.id) }, excludedAt: null },
         _count: { _all: true },
       }) : [];
-      return { items, total, progress };
+      const views = items.length ? await tx.taskView.findMany({
+        where: { taskRecord: { taskId: { in: items.map((item) => item.id) }, excludedAt: null } },
+        select: { versionNo: true, viewedAt: true, taskRecord: { select: { taskId: true } } },
+      }) : [];
+      return { items, total, progress, views };
     }, { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead });
     const progressByTask = new Map<string, { completed: number; pendingReview: number }>();
     for (const row of progress) {
@@ -145,11 +181,21 @@ export class TasksService {
       if (row.status === 'SUBMITTED') count.pendingReview += row._count._all;
       progressByTask.set(row.taskId, count);
     }
+    const viewCountByTask = new Map<string, number>();
+    for (const view of views) {
+      const task = items.find((item) => item.id === view.taskRecord.taskId);
+      if (!task || view.versionNo !== task.currentVersion) continue;
+      const cutoff = task.status === 'CLOSED' ? task.closedAt : task.deadline;
+      if (cutoff && view.viewedAt.getTime() > cutoff.getTime()) continue;
+      viewCountByTask.set(task.id, (viewCountByTask.get(task.id) ?? 0) + 1);
+    }
     return {
       items: items.map(({ _count, ...item }) => {
         const counts = progressByTask.get(item.id) ?? { completed: 0, pendingReview: 0 };
+        const viewedCount = viewCountByTask.get(item.id) ?? 0;
         return { ...item, assigneeCount: _count.records, completedCount: counts.completed,
-          unfinishedCount: _count.records - counts.completed, pendingReviewCount: counts.pendingReview };
+          unfinishedCount: _count.records - counts.completed, pendingReviewCount: counts.pendingReview,
+          viewedCount, unviewedCount: _count.records - viewedCount, lifecycle: this.lifecycle(item) };
       }),
       page: this.page(query.page, query.pageSize, total),
     };
@@ -157,7 +203,7 @@ export class TasksService {
 
   async getManaged(user: AuthUser, taskId: string, canReadAll: boolean) {
     const task = await this.prisma.task.findFirst({
-      where: { id: taskId, departmentId: user.departmentId, ...(!canReadAll ? { createdById: user.id } : {}) },
+      where: { id: taskId, departmentId: user.departmentId, deletedAt: null, ...(!canReadAll ? { createdById: user.id } : {}) },
       include: {
         attachments: { orderBy: { sortOrder: 'asc' }, include: { file: { select: { id: true, originalName: true, mimeType: true, status: true } } } },
         _count: { select: { records: { where: { excludedAt: null } } } },
@@ -165,20 +211,34 @@ export class TasksService {
     });
     if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
     const { _count, ...data } = task;
-    return { ...data, assigneeCount: _count.records };
+    return { ...data, assigneeCount: _count.records, lifecycle: this.lifecycle(data) };
   }
 
   async update(user: AuthUser, taskId: string, dto: CreateTaskDto) {
     this.validateMode(dto);
     const deadline = this.deadline(dto.deadlineAt);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
       if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
-      if (task.status !== 'DRAFT') throw new ConflictException('TASK_STATE_CONFLICT');
+      const active = task.status === 'PUBLISHED' && task.deadline.getTime() > Date.now() && !task.deletedAt;
+      if (task.status !== 'DRAFT' && !active) throw new ConflictException('TASK_STATE_CONFLICT');
       if (task.createdById !== user.id && user.role !== 'HEAD_NURSE') throw new ForbiddenException('PERMISSION_DENIED');
+      if (active && (task.completionMode !== dto.completionMode
+        || task.feedbackRequired !== dto.feedbackRequired
+        || task.attachmentRequired !== dto.attachmentRequired)) {
+        throw new ConflictException('TASK_MODE_IMMUTABLE_AFTER_PUBLISH');
+      }
+      if (active && JSON.stringify(task.assigneeSelection) !== JSON.stringify(dto.assigneeSelection)) {
+        throw new ConflictException('TASK_ASSIGNEES_IMMUTABLE_AFTER_PUBLISH');
+      }
       const assignees = await this.resolveAssignees(tx, user.departmentId, dto.assigneeSelection);
       if (!assignees.length) throw new ConflictException('TASK_ASSIGNEES_EMPTY');
       await this.readyFiles(tx, user.departmentId, user.id, dto.attachmentFileIds);
+      const currentAttachments = await tx.taskAttachment.findMany({ where: { taskId }, orderBy: { sortOrder: 'asc' }, select: { fileId: true } });
+      const nextAttachmentIds = dto.attachmentFileIds ?? [];
+      const attachmentChanged = currentAttachments.map((item) => item.fileId).join(',') !== nextAttachmentIds.join(',');
+      const contentChanged = task.title !== dto.title.trim() || task.content !== dto.content.trim()
+        || task.level !== dto.level || attachmentChanged;
       await tx.taskAttachment.deleteMany({ where: { taskId } });
       if (dto.attachmentFileIds?.length) {
         await tx.taskAttachment.createMany({ data: dto.attachmentFileIds.map((fileId, sortOrder) => ({ taskId, fileId, sortOrder })) });
@@ -190,13 +250,27 @@ export class TasksService {
           completionMode: dto.completionMode, feedbackRequired: dto.feedbackRequired,
           attachmentRequired: dto.attachmentRequired, deadline,
           assigneeSelection: this.json(dto.assigneeSelection),
+          ...(active && contentChanged ? { currentVersion: { increment: 1 } } : {}),
         },
       });
+      if (active && contentChanged) {
+        await tx.taskVersion.create({
+          data: {
+            taskId,
+            versionNo: updated.currentVersion,
+            snapshot: this.versionSnapshot(updated, nextAttachmentIds),
+            changeReason: '进行中任务内容更新，负责人需查看新版本',
+            createdById: user.id,
+          },
+        });
+      }
       await tx.auditLog.create({
-        data: { departmentId: user.departmentId, actorId: user.id, action: 'task.draft_update', targetType: 'task', targetId: taskId, result: 'SUCCESS' },
+        data: { departmentId: user.departmentId, actorId: user.id, action: active ? 'task.active_update' : 'task.draft_update', targetType: 'task', targetId: taskId, result: 'SUCCESS', beforeData: { deadlineAt: task.deadline.toISOString(), version: task.currentVersion }, afterData: { deadlineAt: updated.deadline.toISOString(), version: updated.currentVersion, contentChanged } },
       });
-      return { ...updated, assigneePreviewCount: assignees.length };
+      return { ...updated, assigneePreviewCount: assignees.length, deadlineChanged: task.deadline.getTime() !== updated.deadline.getTime() };
     });
+    if (result.status === 'PUBLISHED' && result.deadlineChanged) await this.scheduler.scheduleTask(taskId, result.deadline);
+    return result;
   }
 
   async cancel(user: AuthUser, taskId: string) {
@@ -213,7 +287,7 @@ export class TasksService {
 
   async publish(user: AuthUser, taskId: string) {
     const result = await this.prisma.$transaction(async (tx) => {
-      const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
+      const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId }, include: { attachments: { orderBy: { sortOrder: 'asc' } } } });
       if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
       if (task.status !== 'DRAFT') throw new ConflictException('TASK_STATE_CONFLICT');
       if (task.createdById !== user.id && user.role !== 'HEAD_NURSE') throw new ForbiddenException('PERMISSION_DENIED');
@@ -221,14 +295,17 @@ export class TasksService {
       if (!assignees.length) throw new ConflictException('TASK_ASSIGNEES_EMPTY');
       const changed = await tx.task.updateMany({
         where: { id: taskId, status: 'DRAFT' },
-        data: { status: 'PUBLISHED', publishedAt: new Date(), publishedById: user.id },
+        data: { status: 'PUBLISHED', publishedAt: new Date(), publishedById: user.id, currentVersion: 1 },
       });
       if (changed.count !== 1) throw new ConflictException('TASK_STATE_CONFLICT');
       await tx.taskRecord.createMany({ data: assignees.map(({ id }) => ({ taskId, assigneeId: id })) });
+      await tx.taskVersion.create({
+        data: { taskId, versionNo: 1, snapshot: this.versionSnapshot(task, task.attachments.map((item) => item.fileId)), changeReason: '任务首次发布', createdById: user.id },
+      });
       await tx.auditLog.create({
         data: { departmentId: user.departmentId, actorId: user.id, action: 'task.publish', targetType: 'task', targetId: taskId, result: 'SUCCESS', afterData: { assigneeCount: assignees.length } },
       });
-      return { ...task, status: 'PUBLISHED' as const, assigneeCount: assignees.length };
+      return { ...task, status: 'PUBLISHED' as const, currentVersion: 1, assigneeCount: assignees.length };
     });
     await this.scheduler.scheduleTask(taskId, result.deadline).catch((error) => {
       console.error(JSON.stringify({ event: 'task_reminder_schedule_failed', taskId, message: (error as Error).message }));
@@ -239,9 +316,9 @@ export class TasksService {
   async changeLifecycle(user: AuthUser, taskId: string, action: 'close' | 'withdraw', dto: OptionalReasonDto | RequiredReasonDto) {
     if (action === 'withdraw' && !dto.reason?.trim()) throw new ConflictException('REASON_REQUIRED');
     const result = await this.prisma.$transaction(async (tx) => {
-      const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
+      const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId, deletedAt: null } });
       if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
-      if (task.status !== 'PUBLISHED') throw new ConflictException('TASK_STATE_CONFLICT');
+      if (task.status !== 'PUBLISHED' || task.deadline.getTime() <= Date.now()) throw new ConflictException('TASK_STATE_CONFLICT');
       const now = new Date();
       const updated = await tx.task.update({
         where: { id: taskId },
@@ -260,9 +337,80 @@ export class TasksService {
     return result;
   }
 
+  async relaunch(user: AuthUser, taskId: string, dto: RelaunchTaskDto) {
+    const deadline = this.deadline(dto.deadlineAt);
+    const result = await this.prisma.$transaction(async (tx) => {
+      const source = await tx.task.findFirst({
+        where: { id: taskId, departmentId: user.departmentId, deletedAt: null },
+        include: {
+          attachments: { orderBy: { sortOrder: 'asc' } },
+          records: { where: { excludedAt: null }, include: { assignee: { select: { status: true } } } },
+        },
+      });
+      if (!source) throw new NotFoundException('RESOURCE_NOT_FOUND');
+      if (!this.isEnded(source)) throw new ConflictException('TASK_NOT_ENDED');
+      const assigneeIds = source.records.filter((record) => record.assignee.status === 'ACTIVE').map((record) => record.assigneeId);
+      if (!assigneeIds.length) throw new ConflictException('TASK_ASSIGNEES_EMPTY');
+      const task = await tx.task.create({
+        data: {
+          departmentId: user.departmentId,
+          title: source.title,
+          content: source.content,
+          level: source.level,
+          status: 'PUBLISHED',
+          currentVersion: 1,
+          completionMode: source.completionMode,
+          feedbackRequired: source.feedbackRequired,
+          attachmentRequired: source.attachmentRequired,
+          deadline,
+          assigneeSelection: this.json({ mode: 'USERS', userIds: assigneeIds }),
+          createdById: user.id,
+          publishedById: user.id,
+          publishedAt: new Date(),
+          sourceTaskId: source.id,
+        },
+      });
+      if (source.attachments.length) {
+        await tx.taskAttachment.createMany({ data: source.attachments.map((item) => ({ taskId: task.id, fileId: item.fileId, sortOrder: item.sortOrder })) });
+      }
+      await tx.taskRecord.createMany({ data: assigneeIds.map((assigneeId) => ({ taskId: task.id, assigneeId })) });
+      await tx.taskVersion.create({
+        data: { taskId: task.id, versionNo: 1, snapshot: this.versionSnapshot(task, source.attachments.map((item) => item.fileId)), changeReason: `由任务 ${source.id} 再次发起`, createdById: user.id },
+      });
+      await tx.auditLog.create({
+        data: { departmentId: user.departmentId, actorId: user.id, action: 'task.relaunch', targetType: 'task', targetId: task.id, result: 'SUCCESS', afterData: { sourceTaskId: source.id, assigneeCount: assigneeIds.length, deadlineAt: deadline.toISOString() } },
+      });
+      return { ...task, assigneeCount: assigneeIds.length, lifecycle: 'ONGOING' as const };
+    });
+    await this.scheduler.scheduleTask(result.id, result.deadline).catch((error) => {
+      console.error(JSON.stringify({ event: 'task_reminder_schedule_failed', taskId: result.id, message: (error as Error).message }));
+    });
+    return result;
+  }
+
+  async softDelete(user: AuthUser, taskId: string, dto: OptionalReasonDto) {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId, deletedAt: null } });
+      if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
+      if (!this.isEnded(task)) throw new ConflictException('TASK_NOT_ENDED');
+      const deletedAt = new Date();
+      const changed = await tx.task.updateMany({
+        where: { id: taskId, deletedAt: null },
+        data: { deletedAt, deletedById: user.id, deleteReason: dto.reason?.trim() || null },
+      });
+      if (changed.count !== 1) throw new ConflictException('TASK_STATE_CONFLICT');
+      await tx.auditLog.create({
+        data: { departmentId: user.departmentId, actorId: user.id, action: 'task.delete', targetType: 'task', targetId: taskId, result: 'SUCCESS', reason: dto.reason?.trim() || null, beforeData: { status: task.status, deadlineAt: task.deadline.toISOString() }, afterData: { deletedAt: deletedAt.toISOString() } },
+      });
+      return { id: taskId, deletedAt };
+    });
+    await this.scheduler.cancel('TASK', taskId).catch(() => undefined);
+    return result;
+  }
+
   async listMine(user: AuthUser, query: MyTaskListQueryDto) {
     const records = await this.prisma.taskRecord.findMany({
-      where: { assigneeId: user.id, excludedAt: null, task: { status: { in: ['PUBLISHED', 'CLOSED'] } } },
+      where: { assigneeId: user.id, excludedAt: null, task: { deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } } },
       include: { task: true },
       orderBy: { updatedAt: 'desc' },
     });
@@ -277,6 +425,7 @@ export class TasksService {
       derivedStatus: this.derivedStatus(record.status, record.task.deadline),
       deadlineAt: record.task.deadline,
       completedAt: record.completedAt,
+      lifecycle: this.lifecycle(record.task),
     }));
     const filtered = query.status ? items.filter((item) => item.derivedStatus === query.status) : items;
     const start = (query.page - 1) * query.pageSize;
@@ -284,17 +433,27 @@ export class TasksService {
   }
 
   async getMine(user: AuthUser, taskId: string) {
-    const record = await this.prisma.taskRecord.findFirst({
-      where: { taskId, assigneeId: user.id, excludedAt: null, task: { status: { in: ['PUBLISHED', 'CLOSED'] } } },
-      include: {
-        task: { include: { attachments: { orderBy: { sortOrder: 'asc' }, include: { file: { select: { id: true, originalName: true, mimeType: true, status: true } } } } } },
-        submissions: {
-          orderBy: { submissionNo: 'asc' },
-          include: { attachments: { orderBy: { sortOrder: 'asc' }, include: { file: { select: { id: true, originalName: true, mimeType: true, status: true } } } } },
+    const { record, viewedAt } = await this.prisma.$transaction(async (tx) => {
+      const found = await tx.taskRecord.findFirst({
+        where: { taskId, assigneeId: user.id, excludedAt: null, task: { deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } } },
+        include: {
+          task: { include: { attachments: { orderBy: { sortOrder: 'asc' }, include: { file: { select: { id: true, originalName: true, mimeType: true, status: true } } } } } },
+          views: { orderBy: { viewedAt: 'asc' } },
+          submissions: {
+            orderBy: { submissionNo: 'asc' },
+            include: { attachments: { orderBy: { sortOrder: 'asc' }, include: { file: { select: { id: true, originalName: true, mimeType: true, status: true } } } } },
+          },
         },
-      },
+      });
+      if (!found) throw new NotFoundException('RESOURCE_NOT_FOUND');
+      const versionNo = Math.max(1, found.task.currentVersion);
+      const view = await tx.taskView.upsert({
+        where: { taskRecordId_versionNo: { taskRecordId: found.id, versionNo } },
+        create: { taskRecordId: found.id, versionNo },
+        update: {},
+      });
+      return { record: found, viewedAt: view.viewedAt };
     });
-    if (!record) throw new NotFoundException('RESOURCE_NOT_FOUND');
     return {
       id: record.task.id,
       recordId: record.id,
@@ -308,6 +467,9 @@ export class TasksService {
       derivedStatus: this.derivedStatus(record.status, record.task.deadline),
       deadlineAt: record.task.deadline,
       completedAt: record.completedAt,
+      lifecycle: this.lifecycle(record.task),
+      viewedAt,
+      currentVersion: record.task.currentVersion,
       attachments: record.task.attachments.map((item) => item.file),
       submissions: record.submissions.map(({ attachments, ...submission }) => ({ ...submission, attachments: attachments.map((item) => item.file) })),
     };
@@ -316,7 +478,7 @@ export class TasksService {
   async complete(user: AuthUser, taskId: string) {
     return this.prisma.$transaction(async (tx) => {
       const record = await tx.taskRecord.findFirst({
-        where: { taskId, assigneeId: user.id, excludedAt: null, task: { status: 'PUBLISHED' } },
+        where: { taskId, assigneeId: user.id, excludedAt: null, task: { status: 'PUBLISHED', deletedAt: null, deadline: { gt: new Date() } } },
         include: { task: true },
       });
       if (!record) throw new NotFoundException('RESOURCE_NOT_FOUND');
@@ -342,7 +504,7 @@ export class TasksService {
   async submit(user: AuthUser, taskId: string, dto: SubmitTaskDto) {
     return this.prisma.$transaction(async (tx) => {
       const record = await tx.taskRecord.findFirst({
-        where: { taskId, assigneeId: user.id, excludedAt: null, task: { status: 'PUBLISHED' } },
+        where: { taskId, assigneeId: user.id, excludedAt: null, task: { status: 'PUBLISHED', deletedAt: null, deadline: { gt: new Date() } } },
         include: { task: true, submissions: { orderBy: { submissionNo: 'desc' }, take: 1 } },
       });
       if (!record) throw new NotFoundException('RESOURCE_NOT_FOUND');
@@ -375,7 +537,7 @@ export class TasksService {
   async review(user: AuthUser, taskId: string, recordId: string, dto: ReviewTaskDto) {
     return this.prisma.$transaction(async (tx) => {
       const record = await tx.taskRecord.findFirst({
-        where: { id: recordId, taskId, task: { departmentId: user.departmentId, status: 'PUBLISHED' } },
+        where: { id: recordId, taskId, task: { departmentId: user.departmentId, deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } } },
       });
       if (!record) throw new NotFoundException('RESOURCE_NOT_FOUND');
       if (record.status !== 'SUBMITTED') throw new ConflictException('TASK_STATE_CONFLICT');
@@ -406,7 +568,7 @@ export class TasksService {
   }
 
   async listRecords(user: AuthUser, taskId: string, query: TaskRecordPageQueryDto) {
-    const task = await this.prisma.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
+    const task = await this.prisma.task.findFirst({ where: { id: taskId, departmentId: user.departmentId, deletedAt: null } });
     if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
     const records = await this.prisma.taskRecord.findMany({
       where: { taskId, excludedAt: null },
@@ -414,16 +576,24 @@ export class TasksService {
       include: {
         assignee: { select: { id: true, employeeNo: true, name: true, primaryGroupId: true } },
         submissions: { orderBy: { submissionNo: 'asc' } },
+        views: { where: { versionNo: task.currentVersion }, orderBy: { viewedAt: 'asc' } },
       },
     });
-    const allItems = records.map((record) => ({
-      id: record.id,
-      assignee: record.assignee,
-      recordStatus: record.status,
-      derivedStatus: this.derivedStatus(record.status, task.deadline),
-      completedAt: record.completedAt,
-      submissions: record.submissions,
-    }));
+    const cutoff = this.isEnded(task) ? (task.closedAt ?? task.deadline) : null;
+    const allItems = records.map((record) => {
+      const viewedAt = record.views[0]?.viewedAt ?? null;
+      const viewedDuringTask = Boolean(viewedAt && (!cutoff || viewedAt.getTime() <= cutoff.getTime()));
+      return {
+        id: record.id,
+        assignee: record.assignee,
+        recordStatus: record.status,
+        derivedStatus: this.derivedStatus(record.status, task.deadline),
+        completedAt: record.completedAt,
+        viewedAt,
+        viewStatus: viewedDuringTask ? 'VIEWED' : viewedAt ? 'VIEWED_AFTER_END' : 'UNVIEWED',
+        submissions: record.submissions,
+      };
+    });
     const counts = allItems.reduce<Record<string, number>>((result, item) => {
       result[item.derivedStatus] = (result[item.derivedStatus] ?? 0) + 1;
       return result;
@@ -432,7 +602,12 @@ export class TasksService {
     return {
       items: allItems.slice(start, start + query.pageSize),
       page: this.page(query.page, query.pageSize, allItems.length),
-      summary: { total: allItems.length, counts },
+      summary: {
+        total: allItems.length,
+        counts,
+        viewed: allItems.filter((item) => item.viewStatus === 'VIEWED').length,
+        unviewed: allItems.filter((item) => item.viewStatus !== 'VIEWED').length,
+      },
     };
   }
 
@@ -440,7 +615,7 @@ export class TasksService {
     return this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
       if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
-      if (task.status !== 'PUBLISHED') throw new ConflictException('TASK_STATE_CONFLICT');
+      if (task.status !== 'PUBLISHED' || task.deadline.getTime() <= Date.now() || task.deletedAt) throw new ConflictException('TASK_STATE_CONFLICT');
       const assignees = await this.resolveAssignees(tx, user.departmentId, selection);
       const result = await tx.taskRecord.createMany({ data: assignees.map(({ id }) => ({ taskId, assigneeId: id })), skipDuplicates: true });
       await tx.auditLog.create({
@@ -454,7 +629,7 @@ export class TasksService {
     return this.prisma.$transaction(async (tx) => {
       const task = await tx.task.findFirst({ where: { id: taskId, departmentId: user.departmentId } });
       if (!task) throw new NotFoundException('RESOURCE_NOT_FOUND');
-      if (task.status !== 'PUBLISHED') throw new ConflictException('TASK_STATE_CONFLICT');
+      if (task.status !== 'PUBLISHED' || task.deadline.getTime() <= Date.now() || task.deletedAt) throw new ConflictException('TASK_STATE_CONFLICT');
       const changed = await tx.taskRecord.updateMany({
         where: { id: recordId, taskId, excludedAt: null, status: { in: ['PENDING', 'RETURNED'] } },
         data: { status: 'EXCLUDED', excludedAt: new Date(), excludedById: user.id, exclusionReason: dto.reason.trim(), lockVersion: { increment: 1 } },

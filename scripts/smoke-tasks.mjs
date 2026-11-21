@@ -68,6 +68,23 @@ await request(`/tasks/${reviewTask.id}`, {
 });
 await request(`/tasks/${reviewTask.id}/publish`, { method: 'POST', headers: headHeaders });
 let mine = (await request(`/me/tasks/${reviewTask.id}`, { headers: nurseHeaders })).data;
+let managedRecords = (await request(`/tasks/${reviewTask.id}/records`, { headers: headHeaders })).data;
+if (managedRecords.summary.viewed !== 1 || managedRecords.items[0]?.viewStatus !== 'VIEWED') throw new Error('Task first view was not recorded');
+const activeDetail = (await request(`/tasks/${reviewTask.id}`, { headers: headHeaders })).data;
+await request(`/tasks/${reviewTask.id}`, {
+  method: 'PATCH', headers: headHeaders,
+  body: JSON.stringify({ ...baseTask, content: '进行中更新后的审核任务正文。', deadlineAt: activeDetail.deadline }),
+});
+managedRecords = (await request(`/tasks/${reviewTask.id}/records`, { headers: headHeaders })).data;
+if (managedRecords.summary.viewed !== 0 || managedRecords.items[0]?.viewStatus !== 'UNVIEWED') throw new Error('Content update did not reset current-version view statistics');
+mine = (await request(`/me/tasks/${reviewTask.id}`, { headers: nurseHeaders })).data;
+const versionAfterContentUpdate = mine.currentVersion;
+await request(`/tasks/${reviewTask.id}`, {
+  method: 'PATCH', headers: headHeaders,
+  body: JSON.stringify({ ...baseTask, content: '进行中更新后的审核任务正文。', deadlineAt: new Date(Date.now() + 3 * 86400000).toISOString() }),
+});
+mine = (await request(`/me/tasks/${reviewTask.id}`, { headers: nurseHeaders })).data;
+if (mine.currentVersion !== versionAfterContentUpdate) throw new Error('Deadline-only update incorrectly reset content version');
 const firstSubmission = (await request(`/me/tasks/${reviewTask.id}/submissions`, {
   method: 'POST', headers: nurseHeaders, body: JSON.stringify({ feedback: '第一次反馈' }),
 })).data;
@@ -116,6 +133,14 @@ if (records.summary.total !== 1 || records.items[0]?.recordStatus !== 'APPROVED'
 await request(`/tasks/${reviewTask.id}/close`, {
   method: 'POST', headers: headHeaders, body: JSON.stringify({ reason: '自动化任务闭环结束' }),
 });
+const relaunched = (await request(`/tasks/${reviewTask.id}/relaunch`, {
+  method: 'POST', headers: headHeaders, body: JSON.stringify({ deadlineAt: new Date(Date.now() + 4 * 86400000).toISOString() }),
+})).data;
+if (relaunched.sourceTaskId !== reviewTask.id || relaunched.id === reviewTask.id) throw new Error('Relaunch did not create an independent linked task');
+await request(`/tasks/${reviewTask.id}/delete`, { method: 'POST', headers: headHeaders, body: JSON.stringify({ reason: '自动化验证业务删除' }) });
+await request(`/me/tasks/${reviewTask.id}`, { headers: nurseHeaders }, [404]);
+await request(`/tasks/${relaunched.id}/close`, { method: 'POST', headers: headHeaders, body: JSON.stringify({ reason: '清理再次发起任务' }) });
+await request(`/tasks/${relaunched.id}/delete`, { method: 'POST', headers: headHeaders, body: JSON.stringify({ reason: '清理自动化数据' }) });
 
 const cancelDraft = (await request('/tasks', {
   method: 'POST', headers: headHeaders, body: JSON.stringify({ ...baseTask, title: `待取消任务 ${Date.now()}` }),
@@ -136,14 +161,18 @@ await request('/tasks', {
   body: JSON.stringify({ ...baseTask, title: `错误复用幂等键 ${Date.now()}` }),
 }, [409]);
 
-const overdue = (await request('/tasks', {
+const endedByDeadline = (await request('/tasks', {
   method: 'POST', headers: headHeaders,
-  body: JSON.stringify({ ...baseTask, title: `任务逾期派生 ${Date.now()}`, deadlineAt: new Date(Date.now() + 2000).toISOString() }),
+  body: JSON.stringify({ ...baseTask, title: `任务自动结束 ${Date.now()}`, deadlineAt: new Date(Date.now() + 5000).toISOString() }),
 })).data;
-await request(`/tasks/${overdue.id}/publish`, { method: 'POST', headers: headHeaders });
-await new Promise((resolve) => setTimeout(resolve, 2500));
-const overdueRecords = (await request(`/tasks/${overdue.id}/records`, { headers: headHeaders })).data;
-if (overdueRecords.items[0]?.derivedStatus !== 'OVERDUE_PENDING') throw new Error('Task overdue status was not derived');
+await request(`/tasks/${endedByDeadline.id}/publish`, { method: 'POST', headers: headHeaders });
+await new Promise((resolve) => setTimeout(resolve, 5500));
+const endedRecords = (await request(`/tasks/${endedByDeadline.id}/records`, { headers: headHeaders })).data;
+if (endedRecords.items[0]?.derivedStatus !== 'PENDING') throw new Error('Ended task incorrectly exposed an overdue status');
+await request(`/me/tasks/${endedByDeadline.id}/complete`, { method: 'POST', headers: nurseHeaders }, [404]);
+const endedList = (await request('/tasks?lifecycle=ENDED&pageSize=100', { headers: headHeaders })).data;
+if (!endedList.items.some((item) => item.id === endedByDeadline.id && item.lifecycle === 'ENDED')) throw new Error('Deadline-ended task missing from ended list');
+await request(`/tasks/${endedByDeadline.id}/delete`, { method: 'POST', headers: headHeaders, body: JSON.stringify({ reason: '清理自动结束任务' }) });
 
 console.log(JSON.stringify({
   smoke: 'tasks-ok',
@@ -152,7 +181,9 @@ console.log(JSON.stringify({
   returnAndResubmitHistory: true,
   concurrentReviewSerialized: true,
   assigneeAddExclude: true,
-  overdueDerived: true,
+  deadlineEndsWithoutOverdue: true,
+  viewVersionTracking: true,
+  relaunchAndSoftDelete: true,
   draftUpdateAndCancel: true,
   idempotencyReplay: true,
   close: true,

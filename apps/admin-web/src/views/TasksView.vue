@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { api, download, post, uploadTaskFile } from '../api';
+import { api, download, patch, post, uploadTaskFile } from '../api';
 import { dateTime, label } from '../format';
 
 const props = defineProps<{ permissions: string[] }>();
@@ -11,13 +11,19 @@ function defaultDeadline() {
   const pad = (value: number) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+function localInput(value: string | Date) {
+  const date = new Date(value); const pad = (part: number) => String(part).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
 
-const items = ref<any[]>([]); const status = ref(''); const loading = ref(false); const error = ref('');
+const items = ref<any[]>([]); const lifecycle = ref(''); const loading = ref(false); const error = ref('');
 const page = ref(1); const totalPages = ref(1); const selectedIds = ref<string[]>([]);
-const batchAction = ref<'' | 'close' | 'cancel'>('');
+const batchAction = ref<'' | 'close' | 'delete'>('');
 const batchBusy = ref(false); const batchResult = ref('');
 const now = ref(Date.now()); let clock: ReturnType<typeof setInterval> | undefined;
 const showCreate = ref(false); const selected = ref<any>(null); const records = ref<any>({ items: [], summary: {} });
+const editingTask = ref<any>(null); const retainedAttachments = ref<any[]>([]);
+const relaunchSource = ref<any>(null); const relaunchDeadlineLocal = ref(defaultDeadline()); const relaunching = ref(false);
 const recordFilter = ref<'ALL' | 'UNFINISHED' | 'COMPLETED'>('ALL');
 const form = ref({ title: '', content: '', level: 'IMPORTANT', completionMode: 'REVIEW', deadlineLocal: defaultDeadline() });
 const attachmentFiles = ref<File[]>([]); const publishing = ref(false);
@@ -27,22 +33,20 @@ const detailCounts = computed(() => {
   const total = records.value.summary?.total ?? 0;
   const counts = records.value.summary?.counts ?? {};
   const completed = (counts.COMPLETED ?? 0) + (counts.APPROVED ?? 0);
-  return { total, completed, unfinished: total - completed, pendingReview: counts.SUBMITTED ?? 0 };
+  return { total, completed, unfinished: total - completed, pendingReview: counts.SUBMITTED ?? 0,
+    viewed: records.value.summary?.viewed ?? 0, unviewed: records.value.summary?.unviewed ?? total };
 });
 const visibleRecords = computed(() => records.value.items.filter((item: any) => recordFilter.value === 'ALL'
   || (recordFilter.value === 'COMPLETED' ? completedStatuses.includes(item.recordStatus) : !completedStatuses.includes(item.recordStatus))));
 const selectedItems = computed(() => items.value.filter((item: any) => selectedIds.value.includes(item.id)));
 const allVisibleSelected = computed(() => items.value.length > 0 && items.value.every((item: any) => selectedIds.value.includes(item.id)));
-const selectableFor = (action: '' | 'close' | 'cancel') => action ? selectedItems.value.filter((item: any) => item.status === (action === 'close' ? 'PUBLISHED' : 'DRAFT')) : [];
+const selectableFor = (action: '' | 'close' | 'delete') => action ? selectedItems.value.filter((item: any) => item.lifecycle === (action === 'close' ? 'ONGOING' : 'ENDED')) : [];
 const levelTone = (value: string) => ({ NORMAL: 'tone-normal', IMPORTANT: 'tone-important', URGENT: 'tone-urgent' } as Record<string, string>)[value] ?? 'tone-neutral';
-const statusTone = (value: string) => ({ DRAFT: 'tone-draft', PUBLISHED: 'tone-published', ENDED: 'tone-ended', CLOSED: 'tone-closed', WITHDRAWN: 'tone-withdrawn', CANCELLED: 'tone-cancelled' } as Record<string, string>)[value] ?? 'tone-neutral';
-function displayStatus(item: any) {
-  return item.status === 'PUBLISHED' && Date.parse(item.deadline) <= now.value ? 'ENDED' : item.status;
-}
-function displayStatusLabel(item: any) { return displayStatus(item) === 'ENDED' ? '结束' : label(item.status); }
+const statusTone = (value: string) => ({ ONGOING: 'tone-ongoing', ENDED: 'tone-ended' } as Record<string, string>)[value] ?? 'tone-neutral';
+function displayStatus(item: any) { return item.lifecycle ?? (item.status === 'PUBLISHED' && Date.parse(item.deadline) > now.value ? 'ONGOING' : 'ENDED'); }
+function displayStatusLabel(item: any) { return displayStatus(item) === 'ONGOING' ? '进行中' : '已结束'; }
 function remaining(item: any) {
-  if (item.status === 'DRAFT') return '未发布';
-  if (['CLOSED', 'WITHDRAWN', 'CANCELLED'].includes(item.status)) return '已结束';
+  if (displayStatus(item) === 'ENDED') return '00:00:00';
   const deadline = Date.parse(item.deadline);
   if (!Number.isFinite(deadline)) return '—';
   const diff = deadline - now.value;
@@ -59,7 +63,7 @@ function remaining(item: any) {
 async function load() {
   loading.value = true; error.value = '';
   try {
-    const query = status.value ? `&status=${status.value}` : '';
+    const query = lifecycle.value ? `&lifecycle=${lifecycle.value}` : '';
     const result = await api(`/tasks?page=${page.value}&pageSize=100${query}`);
     items.value = result.items ?? [];
     totalPages.value = Math.max(1, result.page?.totalPages ?? 1);
@@ -81,14 +85,14 @@ async function batchChange() {
   const eligible = selectableFor(action);
   if (!eligible.length || batchBusy.value) return;
   const skipped = selectedItems.value.length - eligible.length;
-  const verb = action === 'close' ? '关闭' : '取消';
+  const verb = action === 'close' ? '提前结束' : '删除';
   const warning = skipped ? `；另有 ${skipped} 项状态不适用，将跳过` : '';
   if (!confirm(`确定批量${verb} ${eligible.length} 项任务${warning}？此操作会记录每项任务的历史和审计。`)) return;
   batchBusy.value = true; batchResult.value = '';
   try {
     const outcomes = await Promise.allSettled(eligible.map((item: any) => action === 'close'
-      ? post(`/tasks/${item.id}/close`, { reason: '管理员批量关闭' })
-      : api(`/tasks/${item.id}`, { method: 'DELETE' })));
+      ? post(`/tasks/${item.id}/close`, { reason: '管理员批量提前结束' })
+      : post(`/tasks/${item.id}/delete`, { reason: '管理员批量删除已结束任务' })));
     const succeeded = eligible.filter((_: any, index: number) => outcomes[index]?.status === 'fulfilled');
     const failed = outcomes.filter((outcome) => outcome.status === 'rejected') as PromiseRejectedResult[];
     selectedIds.value = selectedIds.value.filter((id) => !succeeded.some((item: any) => item.id === id));
@@ -100,7 +104,7 @@ async function batchChange() {
 function chooseFiles(event: Event) {
   const input = event.target as HTMLInputElement;
   const next = Array.from(input.files ?? []);
-  if (attachmentFiles.value.length + next.length > 9) { alert('最多添加 9 个附件'); input.value = ''; return; }
+  if (retainedAttachments.value.length + attachmentFiles.value.length + next.length > 9) { alert('最多添加 9 个附件'); input.value = ''; return; }
   attachmentFiles.value.push(...next); input.value = '';
 }
 
@@ -110,23 +114,41 @@ async function create() {
   if (!Number.isFinite(deadline.getTime()) || deadline.getTime() <= Date.now()) return alert('请选择晚于当前时间的完成截止时间');
   publishing.value = true;
   try {
-    const selection = { mode: 'ALL_ACTIVE' };
-    const preview = await post('/tasks/assignee-preview', selection);
-    if (!confirm(`确认向 ${preview.assigneeCount} 人发布任务？完成截止时间：${dateTime(deadline.toISOString())}`)) return;
+    const selection = editingTask.value?.assigneeSelection ?? { mode: 'ALL_ACTIVE' };
+    if (!editingTask.value) {
+      const preview = await post('/tasks/assignee-preview', selection);
+      if (!confirm(`确认向 ${preview.assigneeCount} 人发布任务？完成截止时间：${dateTime(deadline.toISOString())}`)) return;
+    } else if (!confirm('确定保存对进行中任务的修改？修改标题、要求、级别或附件后，负责人需要重新查看最新版本。')) return;
     const uploaded = [];
     for (const file of attachmentFiles.value) uploaded.push(await uploadTaskFile(file));
-    const draft = await post('/tasks', {
+    const payload = {
       title: form.value.title.trim(), content: form.value.content.trim(), level: form.value.level,
       completionMode: form.value.completionMode, feedbackRequired: form.value.completionMode === 'REVIEW',
       attachmentRequired: false, deadlineAt: deadline.toISOString(), assigneeSelection: selection,
-      attachmentFileIds: uploaded.map((file: any) => file.id),
-    });
-    await post(`/tasks/${draft.id}/publish`);
+      attachmentFileIds: [...retainedAttachments.value.map((item: any) => item.file.id), ...uploaded.map((file: any) => file.id)],
+    };
+    if (editingTask.value) await patch(`/tasks/${editingTask.value.id}`, payload);
+    else { const draft = await post('/tasks', payload); await post(`/tasks/${draft.id}/publish`); }
     showCreate.value = false; attachmentFiles.value = [];
+    editingTask.value = null; retainedAttachments.value = [];
     form.value = { title: '', content: '', level: 'IMPORTANT', completionMode: 'REVIEW', deadlineLocal: defaultDeadline() };
     await load();
   } catch (cause: any) { alert(cause.message); }
   finally { publishing.value = false; }
+}
+
+function startEdit() {
+  if (!selected.value || displayStatus(selected.value) !== 'ONGOING') return;
+  editingTask.value = selected.value;
+  retainedAttachments.value = [...(selected.value.attachments ?? [])];
+  form.value = { title: selected.value.title, content: selected.value.content, level: selected.value.level,
+    completionMode: selected.value.completionMode, deadlineLocal: localInput(selected.value.deadline) };
+  attachmentFiles.value = []; selected.value = null; showCreate.value = true;
+}
+
+function cancelEditor() {
+  showCreate.value = false; editingTask.value = null; retainedAttachments.value = []; attachmentFiles.value = [];
+  form.value = { title: '', content: '', level: 'IMPORTANT', completionMode: 'REVIEW', deadlineLocal: defaultDeadline() };
 }
 
 async function open(item: any) {
@@ -151,8 +173,22 @@ async function remind() {
   catch (cause: any) { alert(cause.message); }
 }
 async function closeTask() {
-  if (!confirm('关闭后不再接受新的提交，确定关闭？')) return;
-  try { await post(`/tasks/${selected.value.id}/close`, { reason: '管理员后台关闭' }); selected.value = null; await load(); }
+  if (!confirm('提前结束后不再接受新的提交，确定结束任务？')) return;
+  try { await post(`/tasks/${selected.value.id}/close`, { reason: '管理员后台提前结束' }); selected.value = null; await load(); }
+  catch (cause: any) { alert(cause.message); }
+}
+function startRelaunch() { relaunchSource.value = selected.value; relaunchDeadlineLocal.value = defaultDeadline(); selected.value = null; }
+async function relaunch() {
+  const deadline = new Date(relaunchDeadlineLocal.value);
+  if (!Number.isFinite(deadline.getTime()) || deadline.getTime() <= Date.now()) return alert('请选择晚于当前时间的新截止时间');
+  if (!confirm('将复制原任务内容、附件和仍在岗的负责人，生成一条全新的进行中任务。确定再次发起？')) return;
+  relaunching.value = true;
+  try { await post(`/tasks/${relaunchSource.value.id}/relaunch`, { deadlineAt: deadline.toISOString() }); relaunchSource.value = null; await load(); }
+  catch (cause: any) { alert(cause.message); } finally { relaunching.value = false; }
+}
+async function deleteTask() {
+  if (!confirm('删除后任务将从正常列表和负责人列表中隐藏，但历史与审计记录仍会保留。确定删除？')) return;
+  try { await post(`/tasks/${selected.value.id}/delete`, { reason: '管理员删除已结束任务' }); selected.value = null; await load(); }
   catch (cause: any) { alert(cause.message); }
 }
 async function exportRows() {
@@ -168,20 +204,20 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
 </script>
 
 <template>
-  <div class="page-head"><div><h3>任务列表</h3><span class="muted">区分待完成、已提交、退回补充和审核通过</span></div><div class="page-actions"><button class="secondary" @click="exportRows">导出明细</button><button class="primary" @click="showCreate = true">＋ 发布任务</button></div></div>
+  <div class="page-head"><div><h3>任务列表</h3><span class="muted">任务只分为进行中和已结束，人员执行状态在进度明细中查看</span></div><div class="page-actions"><button class="secondary" @click="exportRows">导出明细</button><button class="primary" @click="showCreate = true">＋ 发布任务</button></div></div>
   <section class="panel">
-    <div class="toolbar"><select v-model="status" @change="changeStatus"><option value="">全部状态</option><option value="DRAFT">草稿</option><option value="PUBLISHED">已发布</option><option value="CLOSED">已关闭</option><option value="WITHDRAWN">已撤回</option><option value="CANCELLED">已取消</option></select><span class="grow"></span><button class="ghost" @click="load">刷新</button></div>
+    <div class="toolbar"><select v-model="lifecycle" @change="changeStatus"><option value="">全部任务</option><option value="ONGOING">进行中</option><option value="ENDED">已结束</option></select><span class="grow"></span><button class="ghost" @click="load">刷新</button></div>
     <div class="batch-toolbar">
       <label class="batch-choice">批量操作
         <select v-model="batchAction" :disabled="batchBusy" @change="changeBatchAction">
           <option value="">选择操作后勾选任务</option>
-          <option v-if="canManage('task.manage')" value="close">关闭已发布任务</option>
-          <option v-if="canManage('task.publish')" value="cancel">取消任务草稿</option>
+          <option v-if="canManage('task.manage')" value="close">提前结束进行中任务</option>
+          <option v-if="canManage('task.manage')" value="delete">删除已结束任务</option>
         </select>
       </label>
       <template v-if="batchAction">
         <span class="muted">当前页 {{ items.length }} 项 · 已选 {{ selectedItems.length }} 项 · 可执行 {{ selectableFor(batchAction).length }} 项</span>
-        <button :class="batchAction === 'cancel' ? 'danger small-button' : 'secondary small-button'" :disabled="batchBusy || !selectableFor(batchAction).length" @click="batchChange">执行批量{{ batchAction === 'close' ? '关闭' : '取消' }}</button>
+        <button :class="batchAction === 'delete' ? 'danger small-button' : 'secondary small-button'" :disabled="batchBusy || !selectableFor(batchAction).length" @click="batchChange">执行批量{{ batchAction === 'close' ? '提前结束' : '删除' }}</button>
       </template>
     </div>
     <p v-if="batchResult" class="batch-result" role="status">{{ batchResult }}</p>
@@ -189,7 +225,7 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
     <div v-if="loading" class="empty">正在加载…</div>
     <div v-else class="table-wrap"><table class="data-table task-list"><thead><tr>
       <th v-if="batchAction" class="select-column"><input type="checkbox" :checked="allVisibleSelected" :disabled="batchBusy || !items.length" aria-label="选择当前页任务" @change="toggleAll" /></th>
-      <th>任务标题</th><th>模式</th><th>级别</th><th>状态</th><th>任务发起时间</th><th>截止时间</th><th>未完成人数</th><th>已完成人数</th><th>剩余时间</th><th>操作</th>
+      <th>任务标题</th><th>模式</th><th>级别</th><th>状态</th><th>任务发起时间</th><th>截止时间</th><th>已查看</th><th>未查看</th><th>未完成</th><th>已完成</th><th>剩余时间</th><th>操作</th>
     </tr></thead><tbody><tr v-for="item in items" :key="item.id">
       <td v-if="batchAction"><input type="checkbox" :checked="selectedIds.includes(item.id)" :disabled="batchBusy" :aria-label="`选择任务：${item.title}`" @change="toggleOne(item.id)" /></td>
       <td><button class="link" @click="open(item)">{{ item.title }}</button></td>
@@ -198,6 +234,8 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
       <td><span :class="['tag', statusTone(displayStatus(item))]">{{ displayStatusLabel(item) }}</span></td>
       <td>{{ item.publishedAt ? dateTime(item.publishedAt) : '未发布' }}</td>
       <td>{{ dateTime(item.deadline) }}</td>
+      <td><span class="count completed">{{ item.viewedCount }}</span></td>
+      <td><span class="count unfinished">{{ item.unviewedCount }}</span></td>
       <td><span class="count unfinished">{{ item.unfinishedCount }}</span></td>
       <td><span class="count completed">{{ item.completedCount }}</span></td>
       <td :class="['remaining', displayStatus(item) === 'ENDED' ? 'ended-time' : '']">{{ remaining(item) }}</td>
@@ -205,7 +243,7 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
     </tr></tbody></table><div v-if="!items.length" class="empty">暂无任务</div></div>
     <div v-if="totalPages > 1" class="pager"><button class="ghost small-button" :disabled="page <= 1 || loading" @click="changePage(page - 1)">上一页</button><span>第 {{ page }} / {{ totalPages }} 页</span><button class="ghost small-button" :disabled="page >= totalPages || loading" @click="changePage(page + 1)">下一页</button></div>
   </section>
-  <div v-if="showCreate" class="modal-backdrop"><form class="modal large" @submit.prevent="create"><div class="modal-head"><h3>发布新任务</h3><button type="button" @click="showCreate = false">×</button></div><div class="form-grid"><label class="field full">任务标题<input v-model="form.title" required maxlength="200" /></label><label class="field full">执行要求<textarea v-model="form.content" required maxlength="20000"></textarea></label><label class="field">完成方式<select v-model="form.completionMode"><option value="REVIEW">提交后审核</option><option value="SIMPLE">点击即完成</option></select></label><label class="field">重要程度<select v-model="form.level"><option value="NORMAL">普通</option><option value="IMPORTANT">重要</option><option value="URGENT">紧急</option></select></label><label class="field">完成截止时间（年月日时分）<input v-model="form.deadlineLocal" type="datetime-local" required /></label><label class="field full">任务附件（图片、PDF、Word，单个不超过 10 MB，最多 9 个）<input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" multiple @change="chooseFiles" /></label></div><div v-if="attachmentFiles.length" class="file-list"><div v-for="(file, index) in attachmentFiles" :key="`${file.name}-${index}`"><span>{{ file.name }}</span><button type="button" class="ghost small-button" @click="attachmentFiles.splice(index, 1)">移除</button></div></div><p class="muted">请勿上传患者病历、身份证或具体病情资料。</p><div class="page-actions" style="margin-top:20px;justify-content:flex-end"><button type="button" class="secondary" @click="showCreate = false">取消</button><button class="primary" :disabled="publishing">{{ publishing ? '正在上传并发布…' : '预览人数并发布' }}</button></div></form></div>
+  <div v-if="showCreate" class="modal-backdrop"><form class="modal large" @submit.prevent="create"><div class="modal-head"><h3>{{ editingTask ? '编辑进行中任务' : '发布新任务' }}</h3><button type="button" @click="cancelEditor">×</button></div><div class="form-grid"><label class="field full">任务标题<input v-model="form.title" required maxlength="200" /></label><label class="field full">执行要求<textarea v-model="form.content" required maxlength="20000"></textarea></label><label class="field">完成方式<select v-model="form.completionMode" :disabled="Boolean(editingTask)"><option value="REVIEW">提交后审核</option><option value="SIMPLE">点击即完成</option></select></label><label class="field">重要程度<select v-model="form.level"><option value="NORMAL">普通</option><option value="IMPORTANT">重要</option><option value="URGENT">紧急</option></select></label><label class="field">完成截止时间（年月日时分）<input v-model="form.deadlineLocal" type="datetime-local" required /></label><label class="field full">任务附件（图片、PDF、Word，单个不超过 10 MB，最多 9 个）<input type="file" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx" multiple @change="chooseFiles" /></label></div><div v-if="retainedAttachments.length || attachmentFiles.length" class="file-list"><div v-for="(item, index) in retainedAttachments" :key="item.file.id"><span>{{ item.file.originalName }}</span><button type="button" class="ghost small-button" @click="retainedAttachments.splice(index, 1)">移除</button></div><div v-for="(file, index) in attachmentFiles" :key="`${file.name}-${index}`"><span>{{ file.name }}</span><button type="button" class="ghost small-button" @click="attachmentFiles.splice(index, 1)">移除</button></div></div><p class="muted">{{ editingTask ? '只修改截止时间不会重置查看状态；修改标题、要求、级别或附件会生成新版本。' : '请勿上传患者病历、身份证或具体病情资料。' }}</p><div class="page-actions" style="margin-top:20px;justify-content:flex-end"><button type="button" class="secondary" @click="cancelEditor">取消</button><button class="primary" :disabled="publishing">{{ publishing ? '正在保存…' : editingTask ? '保存修改' : '预览人数并发布' }}</button></div></form></div>
   <div v-if="selected" class="modal-backdrop"><div class="modal large task-detail">
     <div class="modal-head"><div><h3>{{ selected.title }}</h3><span class="muted">{{ displayStatusLabel(selected) }} · {{ label(selected.completionMode) }} · 发起于 {{ selected.publishedAt ? dateTime(selected.publishedAt) : '未发布' }}</span></div><button @click="selected = null">×</button></div>
     <div class="progress-cards">
@@ -213,14 +251,17 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
       <div><span>已完成人数</span><strong class="done-number">{{ detailCounts.completed }}</strong></div>
       <div><span>未完成人数</span><strong class="pending-number">{{ detailCounts.unfinished }}</strong></div>
       <div><span>其中待审核</span><strong>{{ detailCounts.pendingReview }}</strong></div>
+      <div><span>已查看人数</span><strong class="done-number">{{ detailCounts.viewed }}</strong></div>
+      <div><span>未查看人数</span><strong class="pending-number">{{ detailCounts.unviewed }}</strong></div>
     </div>
     <p class="muted progress-note">已提交待审核仍计入未完成；已排除人员不计入统计。</p>
     <div class="detail-block">{{ selected.content }}</div>
     <div v-if="selected.attachments?.length" class="file-list"><strong>任务附件</strong><div v-for="item in selected.attachments" :key="item.file.id"><span>{{ item.file.originalName }}</span><button class="ghost small-button" @click="downloadFile(item.file)">下载</button></div></div>
-    <div class="page-actions detail-actions"><button v-if="pending.length" class="primary" @click="remind">催办待完成 {{ pending.length }} 人</button><button class="secondary" @click="exportRows">导出本任务</button><button v-if="selected.status === 'PUBLISHED'" class="danger" @click="closeTask">关闭任务</button></div>
+    <div class="page-actions detail-actions"><button v-if="pending.length && displayStatus(selected) === 'ONGOING'" class="primary" @click="remind">催办待完成 {{ pending.length }} 人</button><button class="secondary" @click="exportRows">导出本任务</button><button v-if="displayStatus(selected) === 'ONGOING'" class="secondary" @click="startEdit">编辑任务</button><button v-if="displayStatus(selected) === 'ONGOING'" class="danger" @click="closeTask">提前结束</button><button v-if="displayStatus(selected) === 'ENDED'" class="secondary" @click="startRelaunch">再次发起</button><button v-if="displayStatus(selected) === 'ENDED'" class="danger" @click="deleteTask">删除任务</button></div>
     <div class="personnel-head"><h4>人员明细</h4><select v-model="recordFilter" aria-label="筛选任务人员"><option value="ALL">全部人员</option><option value="UNFINISHED">未完成</option><option value="COMPLETED">已完成</option></select></div>
-    <div class="table-wrap"><table class="data-table"><thead><tr><th>姓名</th><th>工号</th><th>执行状态</th><th>提交反馈</th><th>完成/提交时间</th><th>审核</th></tr></thead><tbody><tr v-for="record in visibleRecords" :key="record.id"><td>{{ record.assignee.name }}</td><td>{{ record.assignee.employeeNo }}</td><td><span :class="['tag', completedStatuses.includes(record.recordStatus) ? 'success' : record.derivedStatus?.startsWith('OVERDUE') ? 'overdue' : 'neutral']">{{ label(record.derivedStatus ?? record.recordStatus) }}</span></td><td>{{ record.submissions?.at(-1)?.feedback ?? '—' }}</td><td>{{ dateTime(record.completedAt ?? record.submissions?.at(-1)?.submittedAt) }}</td><td><div v-if="record.recordStatus === 'SUBMITTED'" class="inline-actions"><button class="secondary small-button" @click="review(record, 'RETURN')">退回</button><button class="primary small-button" @click="review(record, 'APPROVE')">通过</button></div><span v-else>—</span></td></tr></tbody></table><div v-if="!visibleRecords.length" class="empty">当前筛选下暂无人员</div></div>
+    <div class="table-wrap"><table class="data-table"><thead><tr><th>姓名</th><th>工号</th><th>查看状态</th><th>查看时间</th><th>执行状态</th><th>提交反馈</th><th>完成/提交时间</th><th>审核</th></tr></thead><tbody><tr v-for="record in visibleRecords" :key="record.id"><td>{{ record.assignee.name }}</td><td>{{ record.assignee.employeeNo }}</td><td><span :class="['tag', record.viewStatus === 'VIEWED' ? 'success' : 'neutral']">{{ record.viewStatus === 'VIEWED' ? '已查看' : record.viewStatus === 'VIEWED_AFTER_END' ? '结束后查看' : '未查看' }}</span></td><td>{{ dateTime(record.viewedAt) }}</td><td><span :class="['tag', completedStatuses.includes(record.recordStatus) ? 'success' : 'neutral']">{{ label(record.recordStatus) }}</span></td><td>{{ record.submissions?.at(-1)?.feedback ?? '—' }}</td><td>{{ dateTime(record.completedAt ?? record.submissions?.at(-1)?.submittedAt) }}</td><td><div v-if="record.recordStatus === 'SUBMITTED'" class="inline-actions"><button class="secondary small-button" @click="review(record, 'RETURN')">退回</button><button class="primary small-button" @click="review(record, 'APPROVE')">通过</button></div><span v-else>—</span></td></tr></tbody></table><div v-if="!visibleRecords.length" class="empty">当前筛选下暂无人员</div></div>
   </div></div>
+  <div v-if="relaunchSource" class="modal-backdrop"><form class="modal" @submit.prevent="relaunch"><div class="modal-head"><h3>再次发起任务</h3><button type="button" @click="relaunchSource = null">×</button></div><p>将复制“{{ relaunchSource.title }}”的内容、附件和仍在岗负责人，并创建一条新任务。</p><label class="field">新任务截止时间（年月日时分）<input v-model="relaunchDeadlineLocal" type="datetime-local" required /></label><div class="page-actions" style="margin-top:20px;justify-content:flex-end"><button type="button" class="secondary" @click="relaunchSource = null">取消</button><button class="primary" :disabled="relaunching">{{ relaunching ? '正在发起…' : '确认再次发起' }}</button></div></form></div>
 </template>
 
 <style scoped>
@@ -243,7 +284,7 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
 .count.completed { color:#25765a; background:#e5f5ed; }
 .remaining { font-variant-numeric:tabular-nums; color:#275f9e; font-weight:700; }
 .remaining.ended-time { color:#5b6e74; }
-.progress-cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:16px 0 8px; }
+.progress-cards { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin:16px 0 8px; }
 .progress-cards > div { padding:15px; border:1px solid #dce9e9; border-radius:12px; background:#f7fbfb; }
 .progress-cards span,.progress-cards strong { display:block; }
 .progress-cards span { color:#60777e; font-size:13px; }
@@ -260,6 +301,7 @@ onUnmounted(() => { if (clock) clearInterval(clock); });
 .tag.tone-urgent { background:#ffebea; color:#b3403e; }
 .tag.tone-draft { background:#eef1f2; color:#5b6e74; }
 .tag.tone-published { background:#e5effc; color:#275f9e; }
+.tag.tone-ongoing { background:#e5effc; color:#275f9e; }
 .tag.tone-ended { background:#eef1f2; color:#4f646b; }
 .tag.tone-closed { background:#e5f5ed; color:#25765a; }
 .tag.tone-withdrawn { background:#fff0df; color:#a85b19; }

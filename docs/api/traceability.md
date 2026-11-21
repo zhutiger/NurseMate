@@ -22,17 +22,20 @@
 | TASK-01～02 | `POST/PATCH /tasks`、`POST /tasks/{taskId}/publish` | `tasks`、`task_records` | 模式发布后固定、负责人快照 |
 | TASK-03 | `POST /me/tasks/{taskId}/complete` | `task_records`、`audit_logs` | 仅简单模式、幂等完成、服务端时间 |
 | TASK-04～06 | 提交接口、`POST /tasks/{taskId}/records/{recordId}/review` | `task_submissions`、附件表、`task_records` | 多次提交不覆盖、并发审核、退回意见 |
-| TASK-07～08 | 明细、关闭和撤回接口 | 任务、记录、提交、审计表 | 状态与明细一致、历史保留 |
+| TASK-07～08 | 明细、查看统计和提前结束接口 | `tasks`、`task_records`、`task_views`、提交与审计表 | 查看与完成统计一致、结束后拒绝新执行、历史保留 |
 | TASK-10～11 | 文件上传/下载接口、`POST /tasks` | `file_objects`、`task_attachments`、`tasks.deadline` | 图片/PDF/Word 校验、接收人授权下载、分钟精度及过去时间拒绝 |
-| TASK-12 | `DELETE /tasks/{taskId}`、`POST /tasks/{taskId}/close` | `tasks.status`、`audit_logs` | 先选择批量动作再勾选、状态限制、混选跳过、逐项权限和审计、部分失败反馈 |
-| TASK-13 | `GET /tasks`、`GET /tasks/{taskId}/records` | `tasks.published_at/deadline`、有效 `task_records` | 列表完成数与明细一致、待审核计入未完成、排除人员不计入、到期显示结束及倒计时归零 |
+| TASK-12 | `POST /tasks/{taskId}/close`、`POST /tasks/{taskId}/delete` | `tasks.status/deleted_at`、`audit_logs` | 先选择批量动作再勾选、生命周期限制、混选跳过、逐项权限和审计、部分失败反馈 |
+| TASK-13 | `GET /tasks`、`GET /tasks/{taskId}/records` | `tasks.published_at/deadline`、有效 `task_records/task_views` | 正常列表仅两种生命周期，查看与完成数和明细一致，到期自动结束及倒计时归零 |
+| TASK-14 | `PATCH /tasks/{taskId}` | `tasks.current_version`、`task_versions`、`task_views` | 内容变化增加版本并重算查看；只改期限不重置查看；完成模式和负责人不可变 |
+| TASK-15 | `POST /tasks/{taskId}/relaunch` | `tasks.source_task_id`、新任务版本与负责人记录 | 新旧任务 ID 不同，内容和在岗负责人复制，旧任务统计不变 |
+| TASK-16 | `POST /tasks/{taskId}/delete` | `tasks.deleted_at/deleted_by_id`、全部关联历史 | 仅已结束可删、正常列表隐藏、历史与审计仍存在 |
 | REMIND-01 | `GET /me/notices`、`GET /me/tasks` | 接收人与任务记录 | 只返回本人有效未完成事项 |
 | REMIND-02～05 | 通知/任务提醒接口 | `reminders`、BullMQ 作业 | 频率、重试、渠道结果与业务状态分离 |
 | REPORT-01～02 | 本人列表、`GET /dashboard/management` | 业务事实表 | 数据范围、指标可下钻追溯 |
 | REPORT-03～04 | `POST /exports` | 导出任务、业务事实、审计表 | 权限、字段完整、每次导出审计 |
 | AUDIT-01～02 | `GET /audit-logs` | `audit_logs` | 关键操作覆盖、业务接口不可改删 |
 | CLIENT-05、NFR-08 | H5、小程序与管理端 API 客户端 | 会话、枚举映射 | 中文状态和错误、并发刷新单次执行、失败可重试 |
-| CLIENT-08 | 管理端任务与人员列表 | 任务等级、任务状态、账号状态 | 中文标签和不同颜色并存，筛选与变化后颜色正确 |
+| CLIENT-08 | 管理端任务与人员列表 | 任务等级、两种任务生命周期、账号状态 | 中文标签和不同颜色并存，筛选与变化后颜色正确 |
 | NFR-01～07 | 全部接口、健康检查 | 事务、索引、幂等、日志、备份 | 性能、并发、权限、恢复、脱敏与告警 |
 
 开发提交应在说明中列出所实现的需求编号和对应验收用例编号；没有需求编号的新增功能不得直接进入 V1.0。

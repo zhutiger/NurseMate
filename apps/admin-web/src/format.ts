@@ -1,11 +1,11 @@
 export const dateTime = (value?: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—';
 
 const labels: Record<string, string> = {
-  DRAFT: '草稿', PUBLISHED: '已发布', CLOSED: '已关闭', WITHDRAWN: '已撤回', CANCELLED: '已取消',
+    DRAFT: '草稿', PUBLISHED: '已发布', CLOSED: '已关闭', WITHDRAWN: '已撤回', CANCELLED: '已取消', ONGOING: '进行中', ENDED: '已结束',
   NORMAL: '普通', IMPORTANT: '重要', URGENT: '紧急', ACTIVE: '在岗', DISABLED: '已停用',
   PENDING_ACTIVATION: '待激活', LOCKED: '已锁定', HEAD_NURSE: '护士长', COORDINATOR: '协管员', NURSE: '护士',
   PENDING: '待完成', SUBMITTED: '待审核', RETURNED: '退回补充', APPROVED: '已通过', COMPLETED: '已完成',
-  CONFIRMED: '已确认', VIEWED: '已查看', UNSEEN: '未查看', SIMPLE: '简单完成', REVIEW: '审核完成',
+    CONFIRMED: '已确认', VIEWED: '已查看', VIEWED_AFTER_END: '结束后查看', UNVIEWED: '未查看', UNSEEN: '未查看', SIMPLE: '简单完成', REVIEW: '审核完成',
   EXCLUDED: '已排除', OVERDUE_PENDING: '逾期待完成', OVERDUE_RETURNED: '逾期待补充',
   OVERDUE_UNSEEN: '逾期未查看', OVERDUE_UNCONFIRMED: '逾期未确认', RECONFIRM_REQUIRED: '需要重新确认',
 };
@@ -26,6 +26,9 @@ const errors: Record<string, string> = {
   FILE_TYPE_NOT_ALLOWED: '仅支持图片、PDF 和 Word 文件', FILE_VERIFICATION_FAILED: '附件校验失败，请重新上传',
   FILE_UPLOAD_INCOMPLETE: '附件上传未完成', SENSITIVE_CONTENT_PROHIBITED: '请勿上传患者敏感资料',
   TASK_ASSIGNEES_EMPTY: '请选择至少一名负责人', NOTICE_RECIPIENTS_EMPTY: '请选择至少一名接收人',
+  TASK_NOT_ENDED: '任务仍在进行中，不能执行该操作', TASK_STATE_CONFLICT: '任务状态已变化，请刷新后重试',
+  TASK_MODE_IMMUTABLE_AFTER_PUBLISH: '任务发布后不能修改完成方式',
+  TASK_ASSIGNEES_IMMUTABLE_AFTER_PUBLISH: '任务发布后不能修改负责人范围',
 };
 export const errorText = (code?: string | null) => code ? errors[code] ?? (/^[A-Z][A-Z0-9_]+$/.test(code) ? '操作未完成，请检查后重试' : code) : '请求失败，请稍后重试';
 
@@ -38,7 +41,8 @@ const auditActions: Record<string, string> = {
   'notice.draft_update': '编辑通知草稿', 'notice.publish': '发布通知', 'notice.confirm': '确认通知',
   'notice.cancel': '取消通知草稿', 'notice.version_create': '更新通知版本',
   'notice.recipients_add': '追加接收人', 'notice.recipient_exclude': '排除接收人',
-  'task.create': '创建任务', 'task.draft_update': '编辑任务草稿', 'task.publish': '发布任务',
+  'task.create': '创建任务', 'task.draft_update': '编辑任务草稿', 'task.active_update': '编辑进行中任务', 'task.publish': '发布任务',
+  'task.relaunch': '再次发起任务', 'task.delete': '删除已结束任务',
   'task.submit': '提交任务', 'task.complete': '完成任务', 'task.cancel': '取消任务草稿',
   'task.assignees_add': '追加负责人', 'task.assignee_exclude': '排除负责人',
   'task.review': '审核任务', 'task.remind': '任务催办', 'notice.remind': '通知催办',

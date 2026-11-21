@@ -8,6 +8,7 @@ import {
   MyTaskListQueryDto,
   OptionalReasonDto,
   RequiredReasonDto,
+  RelaunchTaskDto,
   ReviewTaskDto,
   SubmitTaskDto,
   TaskListQueryDto,
@@ -88,6 +89,28 @@ export class TasksController {
   ) {
     await this.access.require(user, 'task.manage');
     return response(await this.tasks.changeLifecycle(user, taskId, 'close', dto));
+  }
+
+  @Post('tasks/:taskId/relaunch')
+  @HttpCode(201)
+  async relaunch(
+    @CurrentUser() user: AuthUser,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() dto: RelaunchTaskDto,
+  ) {
+    await this.access.require(user, 'task.publish');
+    return response(await this.tasks.relaunch(user, taskId, dto));
+  }
+
+  @Post('tasks/:taskId/delete')
+  @HttpCode(200)
+  async softDelete(
+    @CurrentUser() user: AuthUser,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Body() dto: OptionalReasonDto,
+  ) {
+    await this.access.require(user, 'task.manage');
+    return response(await this.tasks.softDelete(user, taskId, dto));
   }
 
   @Post('tasks/:taskId/withdraw')

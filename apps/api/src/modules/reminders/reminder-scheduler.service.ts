@@ -72,12 +72,8 @@ export class ReminderSchedulerService implements OnModuleInit, OnModuleDestroy {
     if (!this.queue) return;
     await this.cancel('TASK', taskId);
     const preMinutes = Number(process.env.REMINDER_PRE_MINUTES ?? 120);
-    const overdueMinutes = Number(process.env.REMINDER_OVERDUE_DELAY_MINUTES ?? 1);
     const preAt = new Date(Math.max(Date.now() + 1000, deadline.getTime() - preMinutes * 60 * 1000));
-    await Promise.all([
-      this.queue.add('timed-reminder', { targetType: 'TASK', targetId: taskId, event: 'PRE_DEADLINE' }, this.jobOptions(`task-${taskId}-pre-${deadline.getTime()}`, preAt)),
-      this.queue.add('timed-reminder', { targetType: 'TASK', targetId: taskId, event: 'OVERDUE' }, this.jobOptions(`task-${taskId}-overdue-${deadline.getTime()}`, new Date(deadline.getTime() + overdueMinutes * 60 * 1000))),
-    ]);
+    await this.queue.add('timed-reminder', { targetType: 'TASK', targetId: taskId, event: 'PRE_DEADLINE' }, this.jobOptions(`task-${taskId}-pre-${deadline.getTime()}`, preAt));
   }
 
   async cancel(targetType: 'NOTICE' | 'TASK', targetId: string) {
@@ -132,7 +128,7 @@ export class ReminderSchedulerService implements OnModuleInit, OnModuleDestroy {
 
   private async processTask(taskId: string, event: TimedJob['event'], jobId: string) {
     const task = await this.prisma.task.findFirst({
-      where: { id: taskId, status: 'PUBLISHED' },
+      where: { id: taskId, status: 'PUBLISHED', deletedAt: null, deadline: { gt: new Date() } },
       include: { records: { where: { excludedAt: null, status: { in: ['PENDING', 'RETURNED'] } }, include: { assignee: { include: { wechatIdentities: { where: { unboundAt: null } } } } } } },
     });
     if (!task) return { skipped: true };

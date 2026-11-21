@@ -264,7 +264,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [PENDING, SUBMITTED, RETURNED, APPROVED, COMPLETED, OVERDUE_PENDING, OVERDUE_RETURNED]
+            enum: [PENDING, SUBMITTED, RETURNED, APPROVED, COMPLETED]
       responses:
         '200':
           description: 本人任务分页列表
@@ -847,10 +847,11 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
-        - name: status
+        - name: lifecycle
           in: query
           schema:
-            $ref: '#/components/schemas/TaskStatus'
+            $ref: '#/components/schemas/TaskLifecycle'
+          description: 正常任务列表仅使用进行中和已结束；底层历史主状态不直接暴露为筛选项。
       responses:
         '200':
           description: 任务分页列表
@@ -904,8 +905,9 @@ paths:
           description: 任务详情
     patch:
       tags: [Tasks]
-      summary: 修改任务草稿
-      operationId: updateTaskDraft
+      summary: 修改任务草稿或进行中任务
+      description: 进行中任务只能修改标题、正文、级别、截止时间和附件；只改截止时间不重置查看状态，重要内容变化生成新版本。
+      operationId: updateTask
       x-permission: task.publish
       parameters:
         - $ref: '#/components/parameters/TaskId'
@@ -918,7 +920,7 @@ paths:
               $ref: '#/components/schemas/TaskDraftRequest'
       responses:
         '200':
-          description: 更新后的草稿
+          description: 更新后的任务
         '409':
           $ref: '#/components/responses/Conflict'
     delete:
@@ -951,7 +953,7 @@ paths:
   /tasks/{taskId}/close:
     post:
       tags: [Tasks]
-      summary: 正常关闭任务
+      summary: 提前结束进行中任务
       operationId: closeTask
       x-permission: task.manage
       parameters:
@@ -961,7 +963,52 @@ paths:
         $ref: '#/components/requestBodies/OptionalReason'
       responses:
         '200':
-          description: 已关闭
+          description: 已结束
+
+  /tasks/{taskId}/relaunch:
+    post:
+      tags: [Tasks]
+      summary: 将已结束任务再次发起为新任务
+      description: 复制原任务内容、附件和仍在岗负责人，新建独立任务并保留来源任务关联。
+      operationId: relaunchTask
+      x-permission: task.publish
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [deadlineAt]
+              properties:
+                deadlineAt:
+                  type: string
+                  format: date-time
+      responses:
+        '201':
+          description: 新任务已发布
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /tasks/{taskId}/delete:
+    post:
+      tags: [Tasks]
+      summary: 业务删除已结束任务
+      description: 仅从正常任务列表和负责人列表隐藏，执行、提交、查看、版本和审计记录均保留。
+      operationId: deleteEndedTask
+      x-permission: task.manage
+      parameters:
+        - $ref: '#/components/parameters/TaskId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        $ref: '#/components/requestBodies/OptionalReason'
+      responses:
+        '200':
+          description: 已业务删除
+        '409':
+          $ref: '#/components/responses/Conflict'
 
   /tasks/{taskId}/withdraw:
     post:
@@ -1465,6 +1512,11 @@ components:
     TaskStatus:
       type: string
       enum: [DRAFT, PUBLISHED, CLOSED, WITHDRAWN, CANCELLED]
+      description: 服务端兼容历史和审计的内部主状态；正常产品界面不直接展示。
+    TaskLifecycle:
+      type: string
+      enum: [ONGOING, ENDED]
+      description: 面向用户的任务生命周期。截止时间到达或管理员提前结束后为 ENDED。
     TaskCompletionMode:
       type: string
       enum: [SIMPLE, REVIEW]
@@ -1882,7 +1934,7 @@ components:
 
     ManagedTaskSummary:
       type: object
-      required: [id, title, status, level, completionMode, deadline, createdAt, assigneeCount, completedCount, unfinishedCount, pendingReviewCount]
+      required: [id, title, status, lifecycle, level, completionMode, deadline, createdAt, assigneeCount, viewedCount, unviewedCount, completedCount, unfinishedCount, pendingReviewCount]
       properties:
         id:
           type: string
@@ -1891,6 +1943,8 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/TaskStatus'
+        lifecycle:
+          $ref: '#/components/schemas/TaskLifecycle'
         level:
           $ref: '#/components/schemas/NoticeLevel'
         completionMode:
@@ -1908,6 +1962,14 @@ components:
         assigneeCount:
           type: integer
           minimum: 0
+        viewedCount:
+          type: integer
+          minimum: 0
+          description: 当前内容版本在任务结束前已查看的有效负责人数
+        unviewedCount:
+          type: integer
+          minimum: 0
+          description: 未在任务结束前查看当前内容版本的有效负责人数
         completedCount:
           type: integer
           minimum: 0
@@ -1922,7 +1984,7 @@ components:
 
     TaskSummary:
       type: object
-      required: [id, title, status, completionMode, recordStatus, deadlineAt]
+      required: [id, title, status, lifecycle, completionMode, recordStatus, deadlineAt]
       properties:
         id:
           type: string
@@ -1931,6 +1993,8 @@ components:
           type: string
         status:
           $ref: '#/components/schemas/TaskStatus'
+        lifecycle:
+          $ref: '#/components/schemas/TaskLifecycle'
         completionMode:
           $ref: '#/components/schemas/TaskCompletionMode'
         recordStatus:

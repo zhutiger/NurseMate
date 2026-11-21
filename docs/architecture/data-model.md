@@ -21,7 +21,7 @@
 | 权限 | `permissions`、`user_permissions` | 协管员细粒度权限 |
 | 通知 | `notices`、`notice_versions`、`notice_recipients` | 通知主记录、版本和接收快照 |
 | 通知留痕 | `notice_views`、`notice_confirmations` | 每个通知版本的查看与确认记录 |
-| 任务 | `tasks`、`task_records`、`task_submissions` | 任务、负责人状态和多次提交审核 |
+| 任务 | `tasks`、`task_versions`、`task_records`、`task_views`、`task_submissions` | 任务、内容版本、负责人查看、执行状态和多次提交审核 |
 | 文件 | `file_objects` 及三张附件关联表 | 文件元数据及通知、任务、反馈附件 |
 | 提醒 | `reminders` | 站内、微信订阅消息和人工催办记录 |
 | 导出 | `export_jobs` | 异步导出状态、筛选快照、结果文件和有效期 |
@@ -43,6 +43,8 @@ erDiagram
     NOTICE_VERSION ||--o{ NOTICE_VIEW : records
     NOTICE_VERSION ||--o{ NOTICE_CONFIRMATION : records
     TASK ||--o{ TASK_RECORD : assigns
+    TASK ||--o{ TASK_VERSION : versions
+    TASK_RECORD ||--o{ TASK_VIEW : views
     TASK_RECORD ||--o{ TASK_SUBMISSION : submits
     NOTICE_RECIPIENT ||--o{ REMINDER : triggers
     TASK_RECORD ||--o{ REMINDER : triggers
@@ -71,11 +73,15 @@ erDiagram
 ## 6. 任务提交与审核
 
 - `task_records` 为每名负责人保存当前执行状态。
-- `tasks` 固定完成模式、反馈要求和附件要求；发布后不得切换模式或实质修改要求。
+- `tasks.current_version` 指向当前内容版本；`task_versions.snapshot` 保存标题、正文、级别、期限、模式和附件 ID 快照。
+- `task_views` 按负责人记录和内容版本唯一保存服务端首次查看时间。
+- `tasks` 固定完成模式、反馈要求、附件要求和负责人快照；发布后不得切换。
+- 标题、正文、级别或附件变化生成新版本；只修改截止时间不增加版本、不重置查看记录。
+- `deleted_at` 为业务删除标记，`source_task_id` 关联再次发起的来源任务；两者都不得覆盖旧任务历史。
 - `task_submissions.submission_no` 在同一任务记录中递增并唯一。
 - 退回后重新提交新增记录，不修改之前提交。
 - 审核更新时同时检查 `task_records.status` 与 `lock_version`，防止重复审核。
-- 已提交待审核的任务在截止后不计为护士逾期。
+- 截止时间到达后任务结束并拒绝新的完成或提交，不生成任务逾期状态；截止前提交的记录可继续审核。
 
 ## 7. 数据库级约束
 
@@ -93,7 +99,9 @@ Prisma 首次迁移后需要补充 PostgreSQL 原生约束：
 - 用户：科室 + 状态、科室 + 角色、主要分组。
 - 通知：科室 + 状态 + 发布时间、科室 + 截止时间。
 - 通知接收人：用户 + 排除时间。
-- 任务：科室 + 状态 + 发布时间、科室 + 截止时间。
+- 任务：科室 + 状态 + 发布时间、科室 + 截止时间、科室 + 删除时间、来源任务。
+- 任务版本：任务 + 版本唯一、任务 + 创建时间。
+- 任务查看：负责人记录 + 版本唯一、负责人记录 + 查看时间。
 - 任务记录：负责人 + 当前状态。
 - 提醒：状态 + 计划时间、接收人 + 创建时间。
 - 审计：科室 + 时间、操作人 + 时间、业务对象 + 时间。
@@ -107,7 +115,11 @@ Prisma 首次迁移后需要补充 PostgreSQL 原生约束：
 | 激活账号 | 校验激活码、设置密码、更新账号、使用激活码、写审计 |
 | 发布通知 | 更新通知、创建首版本、生成接收人快照、创建提醒计划、写审计 |
 | 确认通知 | 校验接收人与版本、创建确认、取消待提醒、写审计 |
-| 发布任务 | 更新任务、生成负责人记录、创建提醒计划、写审计 |
+| 发布任务 | 更新任务、生成首版本和负责人记录、创建提醒计划、写审计 |
+| 编辑进行中任务 | 更新当前字段；重要内容变化新增版本；写审计；期限变化重排提醒 |
+| 查看任务 | 按负责人记录和当前版本幂等创建首次查看记录 |
+| 再次发起 | 复制内容、附件和有效负责人为新任务、生成首版本、写来源关联和审计 |
+| 删除任务 | 写业务删除标记和审计，不删除关联历史 |
 | 提交任务 | 创建提交版本、更新任务记录状态、写审计 |
 | 审核任务 | 更新提交审核结果、更新任务记录状态、写审计 |
 
